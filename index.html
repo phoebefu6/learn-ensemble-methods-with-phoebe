@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Six sessions on the tabular champions: bagging, random forests, gradient boosting, XGBoost, LightGBM, CatBoost, SHAP - with real trees fitted live in your browser. Climb from one overfit tree at 58% to a tuned booster at 73%, measured. Free, by Phoebe Fu.">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="Learn Ensemble Methods with Phoebe">
+<meta property="og:description" content="Bagging, boosting, XGBoost, LightGBM - with real trees fitted live in your browser. 58% to 73%, measured.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Learn Ensemble Methods with Phoebe">
+<meta name="twitter:description" content="The tabular champions, with real trees fitted live in your browser.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Learn Ensemble Methods with Phoebe</title>
+<link rel="stylesheet" href="assets/style.css?v=1">
+<style>
+
+  .stats-row { display: flex; gap: 2.4rem; margin-top: 1.5rem; flex-wrap: wrap; }
+  .stat b { display: block; font-size: 2.1rem; font-weight: 800; line-height: 1.05; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: .72rem; opacity: .85; text-transform: uppercase; letter-spacing: .09em; font-weight: 600; }
+
+  .course-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(17rem, 1fr)); gap: 1rem; margin-top: 1.5rem; }
+  .course-card {
+    border: 1px solid var(--hairline);
+    border-top: 4px solid var(--diff, var(--indigo));
+    border-radius: var(--radius);
+    padding: 1.2rem 1.3rem 1.1rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+    text-decoration: none;
+    color: var(--ink);
+    background: #fff;
+    transition: box-shadow .15s ease, border-color .15s ease, transform .15s ease;
+    position: relative;
+  }
+  .course-card:hover { border-color: var(--indigo-soft); border-top-color: var(--diff, var(--indigo)); box-shadow: 0 8px 28px rgba(77,124,15,.14); transform: translateY(-3px); }
+  .course-card .cicon { font-size: 1.7rem; line-height: 1; }
+  .course-card .cnum { font-size: .72rem; font-weight: 700; color: var(--indigo); text-transform: uppercase; letter-spacing: .1em; }
+  .course-card h3 { font-size: 1.05rem; font-weight: 800; line-height: 1.3; }
+  .course-card p { font-size: .85rem; color: var(--muted); flex: 1; }
+  .course-card .meta { display: flex; gap: .4rem; flex-wrap: wrap; }
+
+  .diff-legend { display: flex; gap: 1rem; margin-top: 1.6rem; font-size: .74rem; color: var(--muted); font-weight: 600; flex-wrap: wrap; }
+  .diff-legend i { display: inline-block; width: .85rem; height: .35rem; border-radius: 999px; margin-right: .35rem; vertical-align: middle; }
+
+  .paths { margin-top: 2.6rem; }
+  .paths h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: .3rem; }
+  .paths .plede { color: var(--muted); font-size: .92rem; margin-bottom: .8rem; }
+  .path { display: flex; gap: .55rem; align-items: center; padding: .75rem 0; border-bottom: .5px solid var(--hairline); flex-wrap: wrap; }
+  .path:last-child { border-bottom: none; }
+  .path b { min-width: 15.5rem; font-size: .9rem; }
+  .path .pstep { background: var(--indigo-50); color: var(--indigo); border-radius: 999px; padding: .16rem .68rem; font-weight: 700; font-size: .8rem; text-decoration: none; transition: all .12s ease; }
+  .path .pstep:hover { background: var(--indigo); color: #fff; }
+  .path .parr { color: var(--faint); font-weight: 700; }
+
+  .mm-section { margin-top: 1.6rem; }
+  .mm-section h2 { font-size: 1.3rem; font-weight: 800; margin-bottom: .2rem; }
+  .mm-section .mm-lede { color: var(--muted); font-size: .92rem; margin-bottom: .4rem; }
+  .mm-wrap { border: 1px solid var(--hairline); border-radius: var(--radius); background: linear-gradient(180deg,#fff,#F7FEE7); padding: .6rem; overflow-x: auto; }
+  .mm-svg { width: 100%; height: auto; display: block; max-width: 60rem; margin: 0 auto; min-width: 34rem; }
+  .mm-link { cursor: pointer; text-decoration: none; }
+  .mm-node rect { transition: opacity .15s ease, filter .15s ease; }
+  .mm-node text { pointer-events: none; }
+  .mm-link:hover .mm-node rect { filter: brightness(1.06); }
+  .mm-edge { transition: opacity .15s ease; }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn with Phoebe · Data Science</div>
+    <h1>Learn <span class="accent">Ensemble Methods</span> with Phoebe</h1>
+    <p class="sub">The tabular champions: bagging, random forests, gradient boosting, XGBoost, LightGBM, CatBoost - and the discipline that makes them win. One running project across all six sessions: predict Mango Lane's churn, climbing from a single overfit tree at 58 percent holdout to a tuned booster at 73. Every rung on that ladder is fitted live in your browser - real trees, real splits, real train-versus-holdout curves - because a number you measured yourself argues better than any slide.</p>
+    <div class="stats-row">
+      <div class="stat"><b data-count="6">6</b><span>sessions</span></div>
+      <div class="stat"><b data-count="58">58</b><span>% · one tree, holdout</span></div>
+      <div class="stat"><b data-count="73">73</b><span>% · tuned booster</span></div>
+      <div class="stat"><b data-count="600">600</b><span>real trees per click</span></div>
+      <div class="stat"><b data-count="45">45</b><span>min per session</span></div>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <section class="section">
+    <div class="paths" style="margin-top:0">
+      <h2>The six sessions 🌲 <span style="font-size:.85rem;font-weight:600;color:var(--muted)">· one churn model, built across all of them</span></h2>
+      <p class="plede">Everyone starts at session 1 with one hand-built split. By session 6 the leaderboard fits five whole ensembles live and the tuned booster takes the crown - with the receipts.</p>
+    </div>
+
+    <div class="course-grid">
+      <a class="course-card" href="courses/01-why-trees-win-tables.html" style="--diff:#34D399">
+        <span class="cicon">🌳</span>
+        <span class="cnum">Session 1 · easy</span>
+        <h3>Why trees win tables</h3>
+        <p>The evidence read at quote level: three reasons from the research, the honest competition tally, and your first hand-built split on the course data.</p>
+        <span class="meta"><span class="pill amber">▶ Start here</span></span>
+      </a>
+      <a class="course-card" href="courses/02-random-forests.html" style="--diff:#34D399">
+        <span class="cicon">🌲</span>
+        <span class="cnum">Session 2 · easy</span>
+        <h3>Random forests</h3>
+        <p>Bagging turns instability into strength: bootstrap samples, random feature subsets, out-of-bag error - and ten free holdout points, measured.</p>
+        <span class="meta"><span class="pill">the Breiman recipe</span></span>
+      </a>
+      <a class="course-card" href="courses/03-the-residual-game.html" style="--diff:#FBBF24">
+        <span class="cicon">📉</span>
+        <span class="cnum">Session 3 · medium</span>
+        <h3>The residual game</h3>
+        <p>Boosting as gradient descent in function space - then drive it live: real trees, ten at a time, the 32-point overfit gap, and early stopping teaching itself.</p>
+        <span class="meta"><span class="pill amber">🔬 live engine</span></span>
+      </a>
+      <a class="course-card" href="courses/04-xgboost.html" style="--diff:#FBBF24">
+        <span class="cicon">🚀</span>
+        <span class="cnum">Session 4 · medium</span>
+        <h3>XGBoost</h3>
+        <p>The regularized objective, the second-order trick and its real lineage, the four knobs that matter, and the 17-of-29 statistic quoted the way the paper wrote it.</p>
+        <span class="meta"><span class="pill">the industrial engine</span></span>
+      </a>
+      <a class="course-card" href="courses/05-lightgbm-and-catboost.html" style="--diff:#FB923C">
+        <span class="cicon">⚡</span>
+        <span class="cnum">Session 5 · hands-on</span>
+        <h3>LightGBM &amp; CatBoost</h3>
+        <p>Histograms, GOSS, exclusive feature bundling, leaf-wise growth - and CatBoost's ordered boosting against the target leakage hiding in every naive encoding.</p>
+        <span class="meta"><span class="pill">the speed &amp; the leak</span></span>
+      </a>
+      <a class="course-card" href="courses/06-tune-explain-ship.html" style="--diff:#F87171">
+        <span class="cicon">🏆</span>
+        <span class="cnum">Session 6 · capstone</span>
+        <h3>Tune, explain, ship</h3>
+        <p>Five configs fit live on the leaderboard, tuning wins by five points, SHAP explains every flag, and TabPFN gets its honest challenger slot.</p>
+        <span class="meta"><span class="pill amber">🔒 the leaderboard</span></span>
+      </a>
+    </div>
+
+    <div class="diff-legend">
+      <span><i style="background:#34D399"></i>easy - everyone</span>
+      <span><i style="background:#FBBF24"></i>medium</span>
+      <span><i style="background:#FB923C"></i>hands-on</span>
+      <span><i style="background:#F87171"></i>capstone</span>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="paths" style="margin-top:0">
+      <h2>Your passport 🎫</h2>
+      <p class="plede">Clear all three quiz questions in a session and it gets stamped. Stamps live in this browser only.</p>
+    </div>
+    <div class="pp-strip"></div>
+  </section>
+
+  <section class="section">
+    <div class="paths">
+      <h2>Choose your path 🗺️</h2>
+      <p class="plede">Three doors into the same discipline: average what disagrees, chain what corrects, and never watch the train curve.</p>
+      <div class="path"><b>⚡ I need working XGBoost intuition, fast</b>
+        <a class="pstep" href="courses/03-the-residual-game.html">3</a><span class="parr">→</span>
+        <a class="pstep" href="courses/04-xgboost.html">4</a><span class="parr">→</span>
+        <a class="pstep" href="courses/06-tune-explain-ship.html">6</a>
+        <span style="font-size:.82rem;color:var(--muted)">the loop, the engine, the tuning strategy</span>
+      </div>
+      <div class="path"><b>📚 I want the foundations properly</b>
+        <a class="pstep" href="courses/01-why-trees-win-tables.html">1</a><span class="parr">→</span>
+        <a class="pstep" href="courses/02-random-forests.html">2</a><span class="parr">→</span>
+        <a class="pstep" href="courses/03-the-residual-game.html">3</a>
+        <span style="font-size:.82rem;color:var(--muted)">evidence, bagging, boosting - the two recipes from first principles</span>
+      </div>
+      <div class="path"><b>🌲 The whole journey</b>
+        <a class="pstep" href="courses/01-why-trees-win-tables.html">1</a><span class="parr">→</span>
+        <a class="pstep" href="courses/02-random-forests.html">2</a><span class="parr">→</span>
+        <a class="pstep" href="courses/03-the-residual-game.html">3</a><span class="parr">→</span>
+        <a class="pstep" href="courses/04-xgboost.html">4</a><span class="parr">→</span>
+        <a class="pstep" href="courses/05-lightgbm-and-catboost.html">5</a><span class="parr">→</span>
+        <a class="pstep" href="courses/06-tune-explain-ship.html">6</a>
+        <span style="font-size:.82rem;color:var(--muted)">from one hand-built split to a tuned, explained, shipped model</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="paths" style="margin-top:0">
+      <h2>What is real here 🧾</h2>
+      <p class="plede">A course whose title promises winners owes you a precise account of its own numbers.</p>
+    </div>
+    <table class="clean">
+      <tr><th>Claim</th><th>Status</th></tr>
+      <tr><td>The trees, forests and boosters in the widgets</td><td>Real. Genuine greedy split-search trees fitted to the embedded 300-customer sample in your browser, every click - up to 600 trees per run</td></tr>
+      <tr><td>The ladder: 58, 68, 68, 73, 70</td><td>Measured on 100 held-out customers by the same engine, deterministic seed, reproducible on your machine right now</td></tr>
+      <tr><td>The dataset</td><td>The teaching artifice: a seeded 300-customer Mango Lane sample with 10 percent label noise by construction - stated wherever it appears</td></tr>
+      <tr><td>Every research claim</td><td>Verified to source at quote level - including the two most misquoted facts in the field: the XGBoost 17-of-29 stat (blog-published winning solutions, not all competitions) and LightGBM's 20x (vs pre-sorted GBDT, not vs XGBoost)</td></tr>
+      <tr><td>Trees vs deep learning</td><td>Scoped honestly: typical, medium-sized tabular data per Grinsztajn et al.; the TabPFN challenger presented two-sided and dated</td></tr>
+      <tr><td>The in-browser engine vs the real libraries</td><td>A teaching implementation - it demonstrates the mechanism; xgboost and lightgbm ship far more engineering, which sessions 4-5 cover honestly</td></tr>
+    </table>
+  </section>
+
+  <section class="section mm-section">
+    <h2>The knowledge map 🧠</h2>
+    <p class="mm-lede">The whole course at a glance - hover a session to spotlight its concepts, click any node to jump in.</p>
+    <div class="mm-wrap"><div id="mindmap"></div></div>
+  </section>
+
+  <footer class="pagefoot">
+    <span>learn-ensemble-methods-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span>Pairs with <a href="https://phoebefu6.github.io/learn-classification-regression-with-phoebe/">Classification &amp; Regression ↗</a> · source map: <span class="mono">materials/official-course-map.md</span></span>
+  </footer>
+
+</main>
+
+<script>
+window.MINDMAP_DATA = {
+  "title": "Learn Ensemble\nMethods",
+  "centerColor": "#3F6212",
+  "sessions": [
+    {
+      "label": "Why trees\nwin tables",
+      "href": "courses/01-why-trees-win-tables.html",
+      "color": "#34D399",
+      "concepts": [
+        { "label": "Three home advantages", "href": "courses/01-why-trees-win-tables.html" },
+        { "label": "The 17-point gap", "href": "courses/01-why-trees-win-tables.html" },
+        { "label": "Split by hand", "href": "courses/01-why-trees-win-tables.html" }
+      ]
+    },
+    {
+      "label": "Random\nforests",
+      "href": "courses/02-random-forests.html",
+      "color": "#34D399",
+      "concepts": [
+        { "label": "Bagging instability", "href": "courses/02-random-forests.html" },
+        { "label": "Random feature subsets", "href": "courses/02-random-forests.html" },
+        { "label": "Out-of-bag error", "href": "courses/02-random-forests.html" }
+      ]
+    },
+    {
+      "label": "The residual\ngame",
+      "href": "courses/03-the-residual-game.html",
+      "color": "#FBBF24",
+      "concepts": [
+        { "label": "Gradient in function space", "href": "courses/03-the-residual-game.html" },
+        { "label": "The 32-point gap, live", "href": "courses/03-the-residual-game.html" },
+        { "label": "The ESL tuning law", "href": "courses/03-the-residual-game.html" }
+      ]
+    },
+    {
+      "label": "XGBoost",
+      "href": "courses/04-xgboost.html",
+      "color": "#FBBF24",
+      "concepts": [
+        { "label": "Regularized objective", "href": "courses/04-xgboost.html" },
+        { "label": "Second-order lineage", "href": "courses/04-xgboost.html" },
+        { "label": "The four knobs", "href": "courses/04-xgboost.html" }
+      ]
+    },
+    {
+      "label": "LightGBM &\nCatBoost",
+      "href": "courses/05-lightgbm-and-catboost.html",
+      "color": "#FB923C",
+      "concepts": [
+        { "label": "Histograms, GOSS, EFB", "href": "courses/05-lightgbm-and-catboost.html" },
+        { "label": "Leaf-wise growth", "href": "courses/05-lightgbm-and-catboost.html" },
+        { "label": "Ordered boosting", "href": "courses/05-lightgbm-and-catboost.html" }
+      ]
+    },
+    {
+      "label": "Tune, explain,\nship",
+      "href": "courses/06-tune-explain-ship.html",
+      "color": "#F87171",
+      "concepts": [
+        { "label": "The live leaderboard", "href": "courses/06-tune-explain-ship.html" },
+        { "label": "SHAP waterfalls", "href": "courses/06-tune-explain-ship.html" },
+        { "label": "The TabPFN verdict", "href": "courses/06-tune-explain-ship.html" }
+      ]
+    }
+  ]
+};
+</script>
+<script src="assets/mindmap.js?v=1"></script>
+<script src="assets/app.js?v=1"></script>
+</body>
+</html>

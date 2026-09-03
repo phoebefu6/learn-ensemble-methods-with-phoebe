@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 3 of 6. Gradient boosting from the ground up: boosting as gradient descent in function space, real trees fitted live in your browser, and the learning-rate law from Elements of Statistical Learning.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="The residual game - learn ensemble methods with phoebe">
+<meta property="og:description" content="Session 3 of 6. Watch real gradient boosting learn, ten trees at a time, and meet the 32-point gap.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/courses/03-the-residual-game.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The residual game - learn ensemble methods with phoebe">
+<meta name="twitter:description" content="Session 3 of 6. Watch real gradient boosting learn, live in the browser.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 3 · The residual game - learn ensemble methods with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-ensemble-methods-with-phoebe</a> / Session 3 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Ensemble Methods with Phoebe · Session 3 of 6</div>
+    <h1>The residual <span class="accent">game</span></h1>
+    <p class="sub">Bagging averaged away variance. Boosting plays a different game entirely: build a small tree, look at what it got wrong, build the next tree on exactly those mistakes, repeat. Friedman showed in 2001 that this is gradient descent - not on parameters, on the function itself. Tonight the machine plays the game in front of you: real trees, fitted live in your browser, ten at a time, while the train and holdout curves tell two very different stories about the same model.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Medium</span>
+      <span class="chip audience">Builders - you hand-built a split in session 1</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-18 · Boosting is gradient descent</span>
+      <span class="a3" style="flex:5">18-40 · Build-along: watch it learn, live</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Where session 2 left you</h2>
+    </div>
+    <p class="lede">The forest reached 68 percent holdout by averaging sixty independent trees - variance canceled, and the score stopped improving. Averaging can only cancel noise; it cannot add signal the trees never found. Adding missing signal is a different job with a different tool, and the tool is <strong>boosting</strong>.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> Boosting understood as gradient descent in function space - not as a slogan but as a loop you can narrate. A live booster you drive yourself, whose curves expose both the power and the trap. And the tuning law from the standard reference, verified by your own clicks.</p>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The game, in four sentences<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Start with the dumbest possible model: predict the base churn rate for everyone. Compute each customer's <strong>residual</strong> - the gap between what actually happened and what you currently predict. Fit a small tree to those residuals: not to churn, to the mistakes. Add that tree's output to the model, scaled down by a learning rate, and repeat.</p>
+        <p>Every round, the model asks one question: <em>where am I still wrong, and in which direction?</em> Then it takes a small step that way. If that sounds like gradient descent, that is because it is - which is the part Friedman made precise.</p>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>The intuition fits a newsroom: the first draft states the base facts, each editing pass fixes only what the previous pass still got wrong, and no single pass is brilliant. The article converges because every pass targets the current residual error, not because any editor is a genius.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 1 ============ -->
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers the Friedman insight</span>
+      <h2>Gradient descent, in function space</h2>
+      <span class="tag concept">8 min live</span>
+    </div>
+    <p class="lede">Friedman's 2001 paper opens with the reframe that organizes everything: "Function estimation/approximation is viewed from the perspective of numerical optimization in function space, rather than parameter space." One picture makes it concrete.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The boosting loop: current model produces residuals, a small tree is fitted to the residuals, the scaled tree is added to the model, and the loop repeats">
+        <style>
+          .e3aB { font: 700 12px Inter, sans-serif; fill: #fff; }
+          .e3aS { font: 400 11px Inter, sans-serif; fill: #FEF9C3; }
+          .e3aK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e3aE { font: 600 11px Inter, sans-serif; fill: #4D7C0F; }
+          .e3aN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+        </style>
+        <defs>
+          <marker id="e3Ar" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#D6D3D1"/></marker>
+        </defs>
+        <rect x="60" y="60" width="220" height="70" rx="12" fill="#3F6212"/>
+        <text class="e3aB" x="170" y="90" text-anchor="middle">Current model F(x)</text>
+        <text class="e3aS" x="170" y="110" text-anchor="middle">round 0: just the base rate</text>
+        <line x1="280" y1="95" x2="360" y2="95" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e3Ar)"/>
+        <text class="e3aE" x="320" y="84" text-anchor="middle">score everyone</text>
+        <rect x="364" y="60" width="220" height="70" rx="12" fill="#CA8A04"/>
+        <text class="e3aB" x="474" y="90" text-anchor="middle" fill="#1C1917" style="fill:#1C1917">Residuals y - p</text>
+        <text class="e3aK" x="474" y="110" text-anchor="middle">who am I still wrong about?</text>
+        <line x1="584" y1="95" x2="664" y2="95" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e3Ar)"/>
+        <text class="e3aE" x="624" y="84" text-anchor="middle">fit to THESE</text>
+        <rect x="668" y="60" width="152" height="70" rx="12" fill="#4D7C0F"/>
+        <text class="e3aB" x="744" y="90" text-anchor="middle">Small tree h(x)</text>
+        <text class="e3aS" x="744" y="110" text-anchor="middle">depth 3, weak on purpose</text>
+        <path d="M 744 130 L 744 210 L 170 210 L 170 134" fill="none" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e3Ar)"/>
+        <rect x="330" y="182" width="260" height="56" rx="12" fill="#F7FEE7" stroke="#4D7C0F" stroke-width="1.5"/>
+        <text class="e3aK" x="460" y="206" text-anchor="middle">F(x) ← F(x) + v · h(x)</text>
+        <text class="e3aE" x="460" y="226" text-anchor="middle">v = learning rate: take a SMALL step</text>
+        <rect x="60" y="270" width="760" height="52" rx="10" fill="#F7FEE7"/>
+        <text class="e3aK" x="440" y="292" text-anchor="middle">The residual y - p is the negative gradient of the log-loss. Fitting a tree to residuals</text>
+        <text class="e3aK" x="440" y="312" text-anchor="middle">IS taking a gradient step - the step just happens to be a tree instead of a number.</text>
+        <text class="e3aN" x="60" y="356">Friedman 2001, Annals of Statistics: a general gradient descent boosting paradigm for any fitting criterion.</text>
+        <text class="e3aN" x="60" y="378">One loop, any loss. Change the residual formula and the same machine does regression, ranking, or Poisson counts.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the loop that every modern booster runs, thousands of times</figcaption>
+    </figure>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Residuals shrinking over three boosting rounds: large mixed residual bars after round 1, smaller after round 5, near zero on most customers after round 40">
+        <style>
+          .e3cL { font: 600 11px Inter, sans-serif; fill: #1C1917; }
+          .e3cN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e3cT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e3cT" x="60" y="40">TEN CUSTOMERS' RESIDUALS, AS THE ROUNDS PASS · BARS ABOVE THE LINE: MODEL TOO LOW; BELOW: TOO HIGH</text>
+        <text class="e3cL" x="130" y="72">after round 1</text>
+        <line x1="70" y1="130" x2="290" y2="130" stroke="#D6D3D1" stroke-width="1.5"/>
+        <rect x="80" y="92" width="14" height="38" rx="3" fill="#4D7C0F"/>
+        <rect x="100" y="130" width="14" height="30" rx="3" fill="#CA8A04"/>
+        <rect x="120" y="98" width="14" height="32" rx="3" fill="#4D7C0F"/>
+        <rect x="140" y="130" width="14" height="40" rx="3" fill="#CA8A04"/>
+        <rect x="160" y="88" width="14" height="42" rx="3" fill="#4D7C0F"/>
+        <rect x="180" y="130" width="14" height="26" rx="3" fill="#CA8A04"/>
+        <rect x="200" y="104" width="14" height="26" rx="3" fill="#4D7C0F"/>
+        <rect x="220" y="130" width="14" height="36" rx="3" fill="#CA8A04"/>
+        <rect x="240" y="96" width="14" height="34" rx="3" fill="#4D7C0F"/>
+        <rect x="260" y="130" width="14" height="24" rx="3" fill="#CA8A04"/>
+        <text class="e3cL" x="420" y="72">after round 5</text>
+        <line x1="360" y1="130" x2="580" y2="130" stroke="#D6D3D1" stroke-width="1.5"/>
+        <rect x="370" y="110" width="14" height="20" rx="3" fill="#4D7C0F"/>
+        <rect x="390" y="130" width="14" height="16" rx="3" fill="#CA8A04"/>
+        <rect x="410" y="114" width="14" height="16" rx="3" fill="#4D7C0F"/>
+        <rect x="430" y="130" width="14" height="22" rx="3" fill="#CA8A04"/>
+        <rect x="450" y="108" width="14" height="22" rx="3" fill="#4D7C0F"/>
+        <rect x="470" y="130" width="14" height="12" rx="3" fill="#CA8A04"/>
+        <rect x="490" y="118" width="14" height="12" rx="3" fill="#4D7C0F"/>
+        <rect x="510" y="130" width="14" height="18" rx="3" fill="#CA8A04"/>
+        <rect x="530" y="112" width="14" height="18" rx="3" fill="#4D7C0F"/>
+        <rect x="550" y="130" width="14" height="10" rx="3" fill="#CA8A04"/>
+        <text class="e3cL" x="710" y="72">after round 40</text>
+        <line x1="650" y1="130" x2="820" y2="130" stroke="#D6D3D1" stroke-width="1.5"/>
+        <rect x="660" y="124" width="14" height="6" rx="2" fill="#4D7C0F"/>
+        <rect x="680" y="130" width="14" height="5" rx="2" fill="#CA8A04"/>
+        <rect x="700" y="126" width="14" height="4" rx="2" fill="#4D7C0F"/>
+        <rect x="720" y="130" width="14" height="6" rx="2" fill="#CA8A04"/>
+        <rect x="740" y="122" width="14" height="8" rx="2" fill="#4D7C0F"/>
+        <rect x="760" y="130" width="14" height="4" rx="2" fill="#CA8A04"/>
+        <rect x="780" y="126" width="14" height="4" rx="2" fill="#4D7C0F"/>
+        <text class="e3cN" x="60" y="230">Each round's tree targets whatever residual is left, so the bars shrink where signal exists - and the customers</text>
+        <text class="e3cN" x="60" y="252">whose bars refuse to shrink are the noisy 10 percent. Chasing THEIR bars to zero is what overfitting literally is.</text>
+        <text class="e3cN" x="60" y="284">You will see this live in the build-along: the train curve is these bars shrinking; the holdout curve is whether the shrink was signal.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the residuals shrinking round by round, and the stubborn bars that should stay</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Why the trees must be weak<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Session 2's forest wanted deep, unstable trees - averaging needed their disagreement. Boosting wants the opposite: <strong>shallow trees, deliberately too weak to solve the problem alone</strong>. Depth 3 is the course default; depth 1 stumps genuinely work too.</p>
+        <p>The reason is the division of labor. In a forest, each tree attempts the whole problem and the vote cleans up. In boosting, no tree attempts the whole problem - each contributes one small correction, and the SUM is the model. A deep tree in a boosting loop grabs too much at once, including the noise, and the loop then spends rounds polishing that noise. Tonight you will watch exactly that happen at depth 6.</p>
+        <div class="callout tip">
+          <p><strong>The stump surprise, measured.</strong> Depth-1 stumps - single splits, the weakest tree there is - reach 68 percent holdout on the course data after 200 rounds. Sixty deep bagged trees also reached 68. Two hundred one-question trees tie a forest of experts, because the chain lets each question build on every answer before it.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The learning rate: the one law worth memorizing<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The learning rate v scales every tree's contribution down before it joins the model. Small v means each round fixes only a fraction of what it could - which sounds wasteful and is in fact the single best-established tuning law in the field. The Elements of Statistical Learning, section 10.12.1, states it plainly:</p>
+        <div class="prompt-box good">
+          <span class="label">★ ESL, the canonical tuning law (attributing the finding to Friedman 2001)</span>
+"Empirically it has been found (Friedman, 2001) that smaller values
+of v favor better test error, and require correspondingly larger
+values of M. In fact, the best strategy appears to be to set v to be
+very small (v &lt; 0.1) and then choose M by early stopping."
+        </div>
+        <p>Small steps, many rounds, stop when the validation curve says stop. ESL is equally clear about the bill: "smaller values of v give rise to larger values of M, and computation is proportional to the latter." You pay in trees for what you gain in generalization - tonight's simulator lets you feel both sides of that trade in about ninety seconds.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>What the Newton detail buys, for the curious<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The engine on this page does one refinement beyond plain residual fitting: each leaf's value is the residual sum divided by the sum of p(1-p) - a Newton step using the second derivative of the loss, not just the first. Customers the model is already confident about (p near 0 or 1) contribute tiny p(1-p), so uncertain customers dominate the leaf value.</p>
+        <p>Keep that detail warm: it is the direct ancestor of XGBoost's second-order objective in session 4, and knowing it came from somewhere - the LogitBoost line of work in 2000 - is what separates reading the XGBoost paper from being impressed by it.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Watch it learn - and watch it memorize</h2>
+      <span class="tag demo">★ 22 min · everyone builds</span>
+    </div>
+    <p class="lede">The widget below runs the loop from Part 1 for real: every press of the button fits genuine trees to the 300-customer Mango Lane sample in your browser, and the two curves - train in olive, holdout in gold - are measured after every single tree.</p>
+
+    <div id="ensemble-watch"></div>
+
+    <div class="steps">
+      <div class="step"><p><strong>Defaults first: depth 3, learning rate 0.1. Press +10 trees a few times.</strong> Both curves climb together out of the low 60s. This is the healthy phase: every correction the trees find in the training data is real signal that also holds on the holdout.</p></div>
+      <div class="step"><p><strong>Press Run 200 rounds and read the two endings.</strong> Train marches to 100 percent. Holdout tops out at 73 - and if you watch the gold curve closely, it PEAKS at 77 near round 48 and drifts back to 73 by round 200. Nothing is scripted there: that little hump is real early-stopping evidence, generated by real trees, in front of you. ESL said choose M by early stopping; your own screen just showed you why.</p></div>
+      <div class="step"><p><strong>Reset. Now the careless recipe: depth 6, learning rate 0.5. Run 200.</strong> Train hits 100 almost immediately. Holdout stalls at 68 - a 32-point gap, the widest in the course. Deep trees plus big steps grabbed the noise in round after round, and the holdout curve is flat because there was no signal left to find, only noise to polish.</p></div>
+      <div class="step"><p><strong>Compare the two configurations you just ran.</strong> Same data, same loop, same number of trees. Shallow-and-slow: 73. Deep-and-fast: 68. The tuned booster beats the careless one by five points using nothing but restraint - the ESL law, verified by your own two runs.</p></div>
+      <div class="step"><p><strong>Try depth 1.</strong> Two hundred stumps land at 68 holdout with a train score of only 72 - the smallest gap on the board. Underfitting is honest: what stumps learn is real, there is just not enough of it. Depth is a real dial with real ends, and 3 sits between them for a reason.</p></div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>The sentence to keep from tonight.</strong> Train accuracy is what the model can memorize; holdout accuracy is what it actually learned; and every tuning decision in boosting is about refusing memorization politely enough that learning continues.</p>
+    </div>
+
+    <div class="scorecard" data-title="Halfway check - do you own the loop" data-foot="A forgiving check. Mostly-no is normal at halfway; do the lowest row before session 4.">
+      <div class="sc-row"><div class="sc-q">You can narrate the boosting loop from memory: score, residual, fit, scaled add, repeat<em>Four arrows on a napkin, no notes.</em></div></div>
+      <div class="sc-row"><div class="sc-q">You watched the 32-point gap happen live and can say what caused it<em>Deep trees + big steps memorize noise; the holdout does not contain your noise.</em></div></div>
+      <div class="sc-row"><div class="sc-q">You saw the holdout curve peak at 77 near round 48 and drift down<em>That hump IS early stopping - you can now explain M* to anyone.</em></div></div>
+      <div class="sc-row"><div class="sc-q">You can state the ESL law with its price<em>Small v, large M, stop on validation - and computation scales with M.</em></div></div>
+      <div class="sc-row"><div class="sc-q">Your session-1 feature guesses are still written down<em>Session 6's SHAP chart settles them.</em></div></div>
+    </div>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers reading the curves</span>
+      <h2>Every boosting curve tells the same three-act story</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">You will read hundreds of these curves in a working life. They all have the same anatomy, and the three acts are worth naming once, precisely.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The three acts of a boosting run: both curves rise together, then the holdout plateaus and peaks, then train keeps rising while holdout drifts down">
+        <style>
+          .e3bT { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e3bL { font: 600 11px Inter, sans-serif; fill: #6B7280; }
+          .e3bN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e3bG { font: 700 11px Inter, sans-serif; fill: #4D7C0F; }
+          .e3bA { font: 700 11px Inter, sans-serif; fill: #CA8A04; }
+          .e3bR { font: 700 11px Inter, sans-serif; fill: #991B1B; }
+        </style>
+        <line x1="80" y1="240" x2="820" y2="240" stroke="#D6D3D1" stroke-width="1.5"/>
+        <line x1="80" y1="240" x2="80" y2="50" stroke="#D6D3D1" stroke-width="1.5"/>
+        <path d="M 80 220 C 200 110, 300 80, 480 62 C 600 52, 700 50, 820 48" fill="none" stroke="#4D7C0F" stroke-width="2.5"/>
+        <path d="M 80 222 C 180 160, 260 138, 360 132 C 420 129, 470 131, 540 138 C 640 147, 730 152, 820 155" fill="none" stroke="#CA8A04" stroke-width="2.5"/>
+        <line x1="330" y1="50" x2="330" y2="240" stroke="#D6D3D1" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <line x1="560" y1="50" x2="560" y2="240" stroke="#D6D3D1" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <text class="e3bT" x="200" y="272" text-anchor="middle">Act 1 · learning</text>
+        <text class="e3bL" x="200" y="290" text-anchor="middle">both curves rise together</text>
+        <text class="e3bT" x="445" y="272" text-anchor="middle">Act 2 · the peak</text>
+        <text class="e3bL" x="445" y="290" text-anchor="middle">holdout crests - this is M*</text>
+        <text class="e3bT" x="700" y="272" text-anchor="middle">Act 3 · memorizing</text>
+        <text class="e3bL" x="700" y="290" text-anchor="middle">train climbs, holdout drifts down</text>
+        <text class="e3bG" x="792" y="40">train</text>
+        <text class="e3bA" x="782" y="172">holdout</text>
+        <circle cx="445" cy="130" r="5" fill="#CA8A04"/>
+        <text class="e3bR" x="445" y="114" text-anchor="middle">stop here</text>
+        <text class="e3bN" x="80" y="322">Everything after the peak costs compute and returns damage. Early stopping is not a trick - it is reading the story and leaving at the right scene.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the three acts, on every boosting run you will ever launch</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>What each act means operationally<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong>Act 1, rising together:</strong> the trees are extracting shared signal. More rounds are free money. If your budget forces a stop here, lower v was too low or the trees too weak.</li>
+          <li><strong>Act 2, the crest:</strong> M*, the round count you actually want. Production practice is to hold out a validation slice and let the library stop automatically when the curve flattens - the standard reference's advice, mechanized.</li>
+          <li><strong>Act 3, the divergence:</strong> every further round transfers noise from the training sample into the model. The train curve rewards you for it, which is exactly why the train curve must never be the one you watch.</li>
+        </ul>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>Mango Lane's contractor-era model was retrained monthly "with more rounds each time, since the accuracy kept improving". The accuracy that kept improving was training accuracy. The voucher list quietly got worse for three months before anyone checked a holdout - the exact failure this session's second run performs in ninety seconds.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 4</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Run the widget's four corners:</strong> depth 1 and 6, learning rate 0.1 and 0.5, 200 rounds each. Write the four holdout scores in a 2x2 grid. You now have a personally-measured map of the two most important dials in gradient boosting.</li>
+      <li><strong>Find M* for the default config.</strong> Reset, then +10 trees repeatedly, noting the holdout after each press. Write down where the peak came for you and what the score was.</li>
+      <li><strong>Narrate the loop to someone</strong> - the four-arrow napkin version. If you stall at "fit a tree to the residuals", re-open Part 1's diagram; that arrow is the whole idea.</li>
+      <li><strong>Read ESL section 10.12.1</strong> (free PDF at the authors' site) - two pages. Underline the v &lt; 0.1 sentence you already verified by clicking.</li>
+      <li><strong>Optional:</strong> explain to a colleague why "training accuracy 100 percent" made this session's audience wince, not applaud.</li>
+    </ol>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 3 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · In the boosting loop, what does each new tree actually get fitted to?</p>
+      <button class="qopt" type="button">A · The original churn labels, same as every other tree</button>
+      <button class="qopt" type="button">B · A random bootstrap sample of customers, like a forest</button>
+      <button class="qopt" type="button">C · The residuals - the gap between the labels and the current model's predictions, which is the negative gradient of the loss</button>
+      <p class="qwhy">That substitution is the entire Friedman insight: fitting to residuals IS gradient descent, taken in function space, with a tree as the step. Bootstrap-and-vote is the other recipe - session 2's - and mixing up which loop you are in is the classic ensemble mistake.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">2 · Depth 6 with learning rate 0.5 reached train accuracy 100 but holdout 68, while depth 3 with 0.1 reached the same train 100 but holdout 73. Why does the careless config lose?</p>
+      <button class="qopt" type="button">A · Big greedy corrections capture training noise round after round, and the holdout does not contain that noise - restraint left the noise unlearned</button>
+      <button class="qopt" type="button">B · Depth 6 trees are too weak to model the signal</button>
+      <button class="qopt" type="button">C · Learning rate 0.5 makes the model mathematically unable to reach 100 percent train accuracy</button>
+      <p class="qwhy">Both configs memorized the training set - the same 100 up top. The five-point holdout difference is entirely about WHAT ELSE got learned on the way: deep trees and big steps hoover up noise; shallow trees and small steps mostly cannot. The ESL law, measured live.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">3 · The holdout curve at default settings peaked at 77 around round 48 and drifted to 73 by round 200. What is the correct operational response?</p>
+      <button class="qopt" type="button">A · Keep training - the curve would recover if given enough rounds</button>
+      <button class="qopt" type="button">B · Early stopping: hold a validation slice, stop at the crest - the rounds after the peak only transfer noise into the model</button>
+      <button class="qopt" type="button">C · Report the round-50 number but ship the round-200 model, since more trees are more thorough</button>
+      <p class="qwhy">The crest is M*. ESL's exact strategy: set v small, then choose M by early stopping, monitoring prediction risk on a validation sample. Act 3 rounds cost compute and return damage - and shipping a model other than the one you measured is its own, worse mistake.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ OFFICIAL COVERAGE ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Friedman 2001, Annals of Statistics</span><span class="note">Boosting as gradient descent in function space, quoted from the abstract; shrinkage introduced here</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">ESL 2e, section 10.12.1</span><span class="note">The v &lt; 0.1 plus early-stopping law quoted verbatim, with its computational price</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">The Newton-leaf refinement</span><span class="note">Taught as the ancestor of XGBoost's second-order objective; the full lineage lands in session 4</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Stochastic gradient boosting (row subsampling)</span><span class="note">A separate Friedman paper (2002) - named to avoid misattribution, taught with the knobs in session 4</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Full source map with every URL and every honesty caveat: <span class="mono">materials/official-course-map.md</span> in this repo.</p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 3 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>The loop</b><span>Score, residual, fit a small tree to the residuals, add scaled by v, repeat. That is all of boosting.</span></div>
+      <div class="cheat-item"><b>Residual = gradient</b><span>y minus p is the negative gradient of log-loss. Fitting to residuals is gradient descent in function space.</span></div>
+      <div class="cheat-item"><b>Weak on purpose</b><span>Boosting wants shallow trees. Depth 6 in the chain grabbed noise: holdout 68 vs tuned 73, measured.</span></div>
+      <div class="cheat-item"><b>The ESL law</b><span>v very small (under 0.1), M large, choose M by early stopping. The price: compute scales with M.</span></div>
+      <div class="cheat-item"><b>The three acts</b><span>Rise together, crest at M*, diverge. Never watch the train curve - it applauds memorization.</span></div>
+      <div class="cheat-item"><b>The 32-point gap</b><span>Train 100, holdout 68: the widest gap in the course, produced live by depth 6 at rate 0.5.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>Tonight's engine was a teaching implementation - honest but minimal. Session 4 is the industrial version: XGBoost's regularized objective, the second-order trick and where it actually came from, the four knobs that matter, and the famous 17-of-29 statistic quoted the way the paper wrote it rather than the way conference talks repeat it.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 3 of 6 · learn-ensemble-methods-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="02-random-forests.html">← Prev: Random forests</a> &nbsp;·&nbsp; <a href="04-xgboost.html">Next: XGBoost →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=1"></script>
+<script src="../assets/ensemble-live.js?v=1"></script>
+</body>
+</html>

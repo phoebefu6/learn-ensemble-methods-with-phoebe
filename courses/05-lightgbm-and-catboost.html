@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 5 of 6. LightGBM's speed bets - histogram binning, GOSS, EFB, leaf-wise growth with the docs' own caveat - and the target leak CatBoost's ordered boosting was built to fight, hand-computed on five rows.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="LightGBM &amp; CatBoost - learn ensemble methods with phoebe">
+<meta property="og:description" content="Session 5 of 6. How LightGBM goes fast, the leak CatBoost fights, and how to pick the engine for the job.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/courses/05-lightgbm-and-catboost.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="LightGBM &amp; CatBoost - learn ensemble methods with phoebe">
+<meta name="twitter:description" content="Session 5 of 6. Speed tricks, the target leak, and picking the engine honestly.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 5 · LightGBM &amp; CatBoost - learn ensemble methods with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-ensemble-methods-with-phoebe</a> / Session 5 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Ensemble Methods with Phoebe · Session 5 of 6</div>
+    <h1>LightGBM &amp; <span class="accent">CatBoost</span></h1>
+    <p class="sub">XGBoost is the residual loop plus regularization plus engineering - session 4's whole story. Tonight the other two engines that win competitions today: LightGBM, which asked "what can we skip and still find the same splits?" and answered with histograms, GOSS and EFB; and CatBoost, which found a leak hiding in how everyone was encoding categories - a feature that quietly contains the answer - and rebuilt the training order to close it. By the end you can pick the right engine for a job and defend the pick with quotes, not vibes.</p>
+    <div class="chip-row">
+      <span class="chip level">🟠 Hands-on</span>
+      <span class="chip audience">Builders - you drove the loop in session 3</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:5">3-22 · Speed tricks and the leak</span>
+      <span class="a3" style="flex:4">22-40 · Build-along: pick the engine for the job</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Two engines, two different bets</h2>
+    </div>
+    <p class="lede">Session 4 left you with an engine that prices complexity: gamma per leaf, lambda on weights, second-order gain, early stopping as a parameter. LightGBM and CatBoost do not replace any of that. LightGBM's bet is speed - approximate the split search aggressively and spend the saved time on more data. CatBoost's bet is categorical features - and while making it, its authors documented a subtle leak worth an entire section of tonight, because it bites anyone who target-encodes a category by hand, whatever library they run.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> LightGBM's three speed tricks with their exact scopes, including the 20x claim quoted against the right baseline. The target leak computed by hand on five rows, so you can never unsee it. And a one-table decision guide for choosing between the three engines that you can defend in a design review.</p>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>Same family, different bets<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>All three engines run session 3's loop: score everyone, fit a small tree to the gradients, add it scaled, repeat, stop early. Nothing tonight touches that core. What differs is <strong>how they search for splits</strong> - exactly, over histograms, or over a gradient-filtered subsample - and <strong>how they treat categories</strong> - as numbers you encode yourself, or as first-class citizens with leak protection built in.</p>
+        <p>Hold onto that framing, because marketing will not give it to you. The three are not rival paradigms; they are one paradigm with three engineering personalities. When the 2024 competition tally shows all three winning, that is the paradigm winning three ways.</p>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>Teams burn weeks on "XGBoost versus LightGBM" bake-offs that end within a point of each other - which is what session 1's McElfresh finding predicts. The productive question is almost never which engine; it is whether your categories leak, whether your trees are capped, and whether early stopping is on. Tonight is about those questions.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 1 ============ -->
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers LightGBM's speed bets</span>
+      <h2>What LightGBM skips, and why it dares</h2>
+      <span class="tag concept">8 min live</span>
+    </div>
+    <p class="lede">The split search is where boosting spends its time: every node, every feature, every candidate threshold. LightGBM - Ke and colleagues, NeurIPS 2017 - attacks that bill three ways: coarser thresholds (histogram binning), fewer rows (GOSS), fewer features (EFB). Each trick is an approximation with a stated justification, and each justification connects straight back to something you already know.</p>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The three tricks, each with its receipt<span class="mini">5 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p><strong>Histogram binning</strong> (from the docs): bucket each continuous feature into a small number of discrete bins and scan bin boundaries instead of every distinct value. The course's teaching engine already does a crude version of this - its eight candidate thresholds are a tiny histogram - so you have been running the cheap approximation all along, just at toy scale.</p>
+        <p><strong>GOSS - gradient-based one-side sampling</strong>, the paper's first headline idea:</p>
+        <div class="prompt-box good">
+          <span class="label">★ Ke et al., NeurIPS 2017 - GOSS</span>
+"we exclude a significant proportion of data instances with small
+gradients, and only use the rest to estimate the information gain"
+        </div>
+        <p>Small gradient means small residual means the model already predicts that row well - session 3's shrinking bars, weaponized. The rows with big gradients are where the remaining signal lives, so the gain estimate barely suffers when the well-learned rows sit out.</p>
+        <p><strong>EFB - exclusive feature bundling</strong>, the second headline:</p>
+        <div class="prompt-box good">
+          <span class="label">★ Ke et al., NeurIPS 2017 - EFB</span>
+"we bundle mutually exclusive features... to reduce the number
+of features"
+        </div>
+        <p>Sparse one-hot style columns are rarely nonzero at the same time, so several of them can share one physical column without collisions. Fewer columns, same information, faster scans.</p>
+        <div class="callout tip">
+          <p><strong>The speedup, quoted against the right baseline.</strong> The paper's claim: LightGBM "speeds up the training process of conventional GBDT by up to over 20 times while achieving almost the same accuracy." That is versus conventional pre-sorted GBDT - the exact-scan baseline - NOT versus XGBoost. "LightGBM is 20x faster than XGBoost" is the session-4 misquote pattern all over again: right number, wrong denominator.</p>
+        </div>
+      </div>
+    </details>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 440" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Level-wise growth spends seven splits evenly across a balanced tree; leaf-wise growth spends the same seven splits chasing the leaf with maximum loss reduction, producing a deep lopsided tree">
+        <style>
+          .e5aH { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e5aL { font: 600 11px Inter, sans-serif; fill: #1C1917; }
+          .e5aN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e5aT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e5aT" x="60" y="40">SAME BUDGET OF 7 SPLITS · DARK CIRCLES ARE SPLITS, PALE CIRCLES ARE LEAVES</text>
+        <text class="e5aH" x="240" y="76" text-anchor="middle">Level-wise: spend evenly</text>
+        <line x1="240" y1="112" x2="160" y2="184" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="240" y1="112" x2="320" y2="184" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="160" y1="184" x2="115" y2="256" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="160" y1="184" x2="205" y2="256" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="320" y1="184" x2="275" y2="256" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="320" y1="184" x2="365" y2="256" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="115" y1="256" x2="95" y2="322" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="115" y1="256" x2="135" y2="322" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="205" y1="256" x2="185" y2="322" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="205" y1="256" x2="225" y2="322" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="275" y1="256" x2="255" y2="322" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="275" y1="256" x2="295" y2="322" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="365" y1="256" x2="345" y2="322" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="365" y1="256" x2="385" y2="322" stroke="#D6D3D1" stroke-width="2"/>
+        <circle cx="240" cy="112" r="14" fill="#4D7C0F"/>
+        <circle cx="160" cy="184" r="14" fill="#4D7C0F"/>
+        <circle cx="320" cy="184" r="14" fill="#4D7C0F"/>
+        <circle cx="115" cy="256" r="14" fill="#4D7C0F"/>
+        <circle cx="205" cy="256" r="14" fill="#4D7C0F"/>
+        <circle cx="275" cy="256" r="14" fill="#4D7C0F"/>
+        <circle cx="365" cy="256" r="14" fill="#4D7C0F"/>
+        <circle cx="95" cy="322" r="9" fill="#D9F99D"/>
+        <circle cx="135" cy="322" r="9" fill="#D9F99D"/>
+        <circle cx="185" cy="322" r="9" fill="#D9F99D"/>
+        <circle cx="225" cy="322" r="9" fill="#D9F99D"/>
+        <circle cx="255" cy="322" r="9" fill="#D9F99D"/>
+        <circle cx="295" cy="322" r="9" fill="#D9F99D"/>
+        <circle cx="345" cy="322" r="9" fill="#D9F99D"/>
+        <circle cx="385" cy="322" r="9" fill="#D9F99D"/>
+        <text class="e5aL" x="240" y="360" text-anchor="middle">balanced, depth capped at 3</text>
+        <text class="e5aH" x="650" y="76" text-anchor="middle">Leaf-wise: chase max delta loss</text>
+        <line x1="640" y1="106" x2="575" y2="158" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="640" y1="106" x2="705" y2="158" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="705" y1="158" x2="640" y2="210" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="705" y1="158" x2="770" y2="210" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="640" y1="210" x2="575" y2="262" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="640" y1="210" x2="705" y2="262" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="705" y1="262" x2="640" y2="314" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="705" y1="262" x2="770" y2="314" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="640" y1="314" x2="580" y2="366" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="640" y1="314" x2="700" y2="366" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="770" y1="210" x2="825" y2="262" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="770" y1="210" x2="735" y2="262" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="575" y1="158" x2="520" y2="210" stroke="#D6D3D1" stroke-width="2"/>
+        <line x1="575" y1="158" x2="610" y2="210" stroke="#D6D3D1" stroke-width="2"/>
+        <circle cx="640" cy="106" r="14" fill="#4D7C0F"/>
+        <circle cx="705" cy="158" r="14" fill="#4D7C0F"/>
+        <circle cx="640" cy="210" r="14" fill="#4D7C0F"/>
+        <circle cx="705" cy="262" r="14" fill="#4D7C0F"/>
+        <circle cx="640" cy="314" r="14" fill="#4D7C0F"/>
+        <circle cx="770" cy="210" r="14" fill="#4D7C0F"/>
+        <circle cx="575" cy="158" r="14" fill="#4D7C0F"/>
+        <circle cx="520" cy="210" r="9" fill="#D9F99D"/>
+        <circle cx="610" cy="210" r="9" fill="#D9F99D"/>
+        <circle cx="735" cy="262" r="9" fill="#D9F99D"/>
+        <circle cx="575" cy="262" r="9" fill="#D9F99D"/>
+        <circle cx="770" cy="314" r="9" fill="#D9F99D"/>
+        <circle cx="825" cy="262" r="9" fill="#D9F99D"/>
+        <circle cx="580" cy="366" r="9" fill="#D9F99D"/>
+        <circle cx="700" cy="366" r="9" fill="#D9F99D"/>
+        <text class="e5aL" x="650" y="400" text-anchor="middle">lopsided, deep where loss lives</text>
+        <text class="e5aN" x="60" y="428">Docs: leaf-wise converges faster on big data - and on small data it overfits, so cap max_depth. The 300-row lab sample is exactly the risky case.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the same 7 splits spent evenly versus spent chasing the deepest loss</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Leaf-wise growth - a docs fact, cited as one<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>One famous LightGBM behavior is not in the NeurIPS paper at all - it lives in the documentation, so tonight cites the documentation:</p>
+        <div class="prompt-box good">
+          <span class="label">★ LightGBM docs, Features page - leaf-wise growth</span>
+"LightGBM grows trees leaf-wise (best-first)... will choose the
+leaf with max delta loss to grow"
+        </div>
+        <p>Where level-wise growth completes each depth before starting the next, leaf-wise pours its split budget into whichever leaf promises the biggest loss reduction - so the tree gets deep exactly where the loss is concentrated. The docs attach their own warning, and it is not fine print: on small data, leaf-wise overfits, and the recommended defense is to cap max_depth. A best-first search chasing max delta loss on 200 training rows will happily chase the 10 percent label noise to the bottom.</p>
+        <div class="callout tip">
+          <p><strong>Sourcing discipline, stated once.</strong> "It's in the paper" and "it's in the docs" are different citations with different weight - papers are fixed and reviewed, docs move with releases. Tonight's rule, applied throughout: GOSS and EFB and the 20x claim carry the paper's citation; histogram detail and leaf-wise growth carry the docs'. Keep the habit; it costs one clause per claim.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers CatBoost and the leak</span>
+      <h2>The feature that quietly contains the answer</h2>
+      <span class="tag concept">8 min live</span>
+    </div>
+    <p class="lede">Categorical features do not fit in a threshold split, so practitioners encode them - and the most seductive encoding is the target mean: replace each category with its average churn rate. The trap: computed naively, each row's encoding includes that row's own label. The feature now carries a whisper of the answer, the model learns to listen to the whisper, and the whisper is silent on customers you have not labeled yet.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 430" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Naive target encoding feeds each row's own label back into its own feature, shown as a red loop; ordered target statistics compute each row's encoding from only the rows before it in a permutation, shown with olive arrows">
+        <style>
+          .e5bH { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e5bL { font: 600 11px Inter, sans-serif; fill: #1C1917; }
+          .e5bR { font: 700 11px Inter, sans-serif; fill: #991B1B; }
+          .e5bG { font: 700 11px Inter, sans-serif; fill: #4D7C0F; }
+          .e5bN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e5bT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <defs>
+          <marker id="e5bAr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#991B1B"/></marker>
+          <marker id="e5bAg" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#4D7C0F"/></marker>
+        </defs>
+        <text class="e5bT" x="60" y="40">FIVE MANGO LANE ROWS, ONE CATEGORY COLUMN · CHANNEL A OR B, CHURNED 1 OR 0</text>
+        <text class="e5bH" x="70" y="76">Naive target encoding</text>
+        <rect x="70" y="92" width="170" height="32" rx="8" fill="#F7FEE7" stroke="#D6D3D1"/>
+        <text class="e5bL" x="82" y="113">1 · A · churned (1)</text>
+        <rect x="70" y="134" width="170" height="32" rx="8" fill="#F7FEE7" stroke="#D6D3D1"/>
+        <text class="e5bL" x="82" y="155">2 · A · stayed (0)</text>
+        <rect x="70" y="176" width="170" height="32" rx="8" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+        <text class="e5bR" x="82" y="197">3 · B · churned (1)</text>
+        <rect x="70" y="218" width="170" height="32" rx="8" fill="#F7FEE7" stroke="#D6D3D1"/>
+        <text class="e5bL" x="82" y="239">4 · B · churned (1)</text>
+        <rect x="70" y="260" width="170" height="32" rx="8" fill="#F7FEE7" stroke="#D6D3D1"/>
+        <text class="e5bL" x="82" y="281">5 · B · stayed (0)</text>
+        <text class="e5bL" x="268" y="113">enc 0.50</text>
+        <text class="e5bL" x="268" y="155">enc 0.50</text>
+        <text class="e5bR" x="268" y="197">enc 0.67</text>
+        <text class="e5bL" x="268" y="239">enc 0.67</text>
+        <text class="e5bL" x="268" y="281">enc 0.67</text>
+        <path d="M 240 192 C 330 150, 350 230, 312 196" fill="none" stroke="#991B1B" stroke-width="2" marker-end="url(#e5bAr)"/>
+        <text class="e5bR" x="70" y="330">Row 3's own label (1) is inside</text>
+        <text class="e5bR" x="70" y="348">its own 0.67 - the feature</text>
+        <text class="e5bR" x="70" y="366">whispers the answer back.</text>
+        <text class="e5bH" x="500" y="76">Ordered target statistics</text>
+        <rect x="500" y="92" width="170" height="32" rx="8" fill="#F7FEE7" stroke="#65A30D"/>
+        <text class="e5bL" x="512" y="113">1 · A · churned (1)</text>
+        <rect x="500" y="134" width="170" height="32" rx="8" fill="#F7FEE7" stroke="#65A30D"/>
+        <text class="e5bL" x="512" y="155">2 · A · stayed (0)</text>
+        <rect x="500" y="176" width="170" height="32" rx="8" fill="#F7FEE7" stroke="#65A30D"/>
+        <text class="e5bL" x="512" y="197">3 · B · churned (1)</text>
+        <rect x="500" y="218" width="170" height="32" rx="8" fill="#D9F99D" stroke="#4D7C0F" stroke-width="1.5"/>
+        <text class="e5bL" x="512" y="239">4 · B · churned (1)</text>
+        <rect x="500" y="260" width="170" height="32" rx="8" fill="#F7FEE7" stroke="#65A30D"/>
+        <text class="e5bL" x="512" y="281">5 · B · stayed (0)</text>
+        <path d="M 674 108 C 740 120, 750 180, 720 226" fill="none" stroke="#4D7C0F" stroke-width="2" marker-end="url(#e5bAg)"/>
+        <path d="M 674 150 C 728 165, 736 195, 716 228" fill="none" stroke="#4D7C0F" stroke-width="2" marker-end="url(#e5bAg)"/>
+        <path d="M 674 192 C 712 200, 716 210, 708 226" fill="none" stroke="#4D7C0F" stroke-width="2" marker-end="url(#e5bAg)"/>
+        <text class="e5bG" x="500" y="330">Row 4's encoding uses only rows</text>
+        <text class="e5bG" x="500" y="348">1-3, the prefix of a permutation.</text>
+        <text class="e5bG" x="500" y="366">No row ever sees its own label.</text>
+        <text class="e5bN" x="60" y="404">The build-along recomputes these five rows by hand: drop each row's own label and row 3's feature falls from 0.67 to 0.50.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the leak drawn: a label feeding its own feature versus an encoding that only looks backward</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The paper's claim, quoted precisely<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Prokhorenkova and colleagues, NeurIPS 2018, name the disease and its reach in one sentence - and the reach is the startling part, so quote it exactly as their claim:</p>
+        <div class="prompt-box good">
+          <span class="label">★ Prokhorenkova et al., NeurIPS 2018 - the problem statement</span>
+"a prediction shift caused by a special kind of target leakage
+present in all currently existing implementations of gradient
+boosting algorithms"
+        </div>
+        <p>"Prediction shift" and "target leakage" are the paper's precise vocabulary, and "all currently existing implementations" is their claim as of 2018 - state it as theirs, not as settled consensus. Their diagnosis covers two doors the label sneaks through: category encodings computed with the row's own label, and the boosting process itself, where every tree is fit on residuals computed by models that already saw those same rows.</p>
+        <p>The fix has two matching halves. <strong>Ordered target statistics:</strong> encode each row using only the rows BEFORE it in a random permutation - the prefix - so no row's feature ever contains its own label. <strong>Ordered boosting</strong>, in the paper's words "a permutation-driven alternative to the classic algorithm": apply the same only-look-backward discipline to the residuals themselves. Same idea, applied to the feature and to the loop.</p>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>This leak does not need CatBoost's problem to bite you. Any pipeline where an analyst adds "churn rate by acquisition channel" as a feature, computed over the full training table, has built the naive encoder by hand. Validation looks great - the leak is in the validation rows too - and production quietly underperforms. If you take one operational habit from tonight: any feature computed FROM the target must be computed as-of, never over the whole table.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Why "prediction shift" and not just "overfitting"<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The paper's term is chosen carefully. Overfitting is fitting noise; a prediction shift is a systematic bias - the model's predictions on training rows are shifted relative to what the same model produces on genuinely fresh rows, because training rows enjoyed information fresh rows never get. That is why the symptom is a validation-production gap rather than a train-validation gap, and why it survives cross-validation: every fold's encoding was computed the same leaky way. A shifted model can look perfectly regularized and still be wrong in the same direction every time.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3 ============ -->
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers choosing between the three</span>
+      <h2>One family, three personalities, one honest guide</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">The wrong way to choose is loyalty. The right way is to match each engine's distinguishing bet to the job in front of you - and to remember, from session 1, that light tuning of whichever you pick matters more than the pick.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Family tree: the session 3 residual loop at the root, branching into XGBoost with priced complexity, LightGBM with speed tricks, and CatBoost with ordered categorical handling">
+        <style>
+          .e5cH { font: 700 13px Inter, sans-serif; fill: #fff; }
+          .e5cS { font: 400 11px Inter, sans-serif; fill: #FEF9C3; }
+          .e5cK { font: 700 13px Inter, sans-serif; fill: #1C1917; }
+          .e5cL { font: 600 11px Inter, sans-serif; fill: #1C1917; }
+          .e5cN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e5cT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <defs>
+          <marker id="e5cAr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto"><path d="M0,0 L8,4 L0,8 z" fill="#D6D3D1"/></marker>
+        </defs>
+        <text class="e5cT" x="60" y="40">ONE ROOT, THREE BETS · EVERY BRANCH STILL RUNS THE SAME LOOP</text>
+        <rect x="280" y="60" width="320" height="76" rx="12" fill="#3F6212"/>
+        <text class="e5cH" x="440" y="90" text-anchor="middle">The residual loop - session 3</text>
+        <text class="e5cS" x="440" y="112" text-anchor="middle">score · residual · fit · scaled add · stop early</text>
+        <line x1="360" y1="136" x2="180" y2="212" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e5cAr)"/>
+        <line x1="440" y1="136" x2="440" y2="212" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e5cAr)"/>
+        <line x1="520" y1="136" x2="700" y2="212" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e5cAr)"/>
+        <rect x="60" y="216" width="240" height="100" rx="12" fill="#4D7C0F"/>
+        <text class="e5cH" x="180" y="246" text-anchor="middle">XGBoost · 2016</text>
+        <text class="e5cS" x="180" y="270" text-anchor="middle">bet: priced complexity</text>
+        <text class="e5cS" x="180" y="290" text-anchor="middle">γ per leaf, λ on weights,</text>
+        <text class="e5cS" x="180" y="308" text-anchor="middle">second-order gain</text>
+        <rect x="320" y="216" width="240" height="100" rx="12" fill="#CA8A04"/>
+        <text class="e5cK" x="440" y="246" text-anchor="middle">LightGBM · 2017</text>
+        <text class="e5cL" x="440" y="270" text-anchor="middle">bet: speed</text>
+        <text class="e5cL" x="440" y="290" text-anchor="middle">histograms, GOSS, EFB,</text>
+        <text class="e5cL" x="440" y="308" text-anchor="middle">leaf-wise growth</text>
+        <rect x="580" y="216" width="240" height="100" rx="12" fill="#65A30D"/>
+        <text class="e5cK" x="700" y="246" text-anchor="middle">CatBoost · 2018</text>
+        <text class="e5cL" x="700" y="270" text-anchor="middle">bet: categoricals</text>
+        <text class="e5cL" x="700" y="290" text-anchor="middle">ordered target statistics,</text>
+        <text class="e5cL" x="700" y="308" text-anchor="middle">ordered boosting</text>
+        <text class="e5cN" x="60" y="350">2024 winning solutions: 16 LightGBM, 13 CatBoost, 8 XGBoost - and ensembles mixing several are common. The root wins every time.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - three engines as one family tree, each branch labeled with its distinguishing bet</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The decision guide, defensible line by line<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <table class="clean">
+          <tr><th>Engine</th><th>Reach for it when</th><th>Watch out for</th></tr>
+          <tr><td>XGBoost</td><td>You want the most battle-tested reference implementation, the widest tooling and deployment surface, and a decade of production folklore</td><td>No longer the fastest on big data; categories are your problem to encode safely</td></tr>
+          <tr><td>LightGBM</td><td>The data is big and training time is the bottleneck - the speed bets were built for exactly this</td><td>Leaf-wise on small data: the docs' own caveat says cap max_depth</td></tr>
+          <tr><td>CatBoost</td><td>Many high-cardinality categoricals - channels, SKUs, regions - and you want leak-safe handling plus strong defaults out of the box</td><td>Being the newest of the three, it has the thinnest folklore; defaults are strong but not magic</td></tr>
+        </table>
+        <p>Two calibrating facts to staple onto the table. First, revealed preference: the 2024 winning-solution tally - 16 LightGBM, 13 CatBoost, 8 XGBoost, with ensembles mixing several engines common - says practitioners treat all three as winners and pick by fit. Second, the McElfresh reminder from session 1: across 176 datasets, light hyperparameter tuning of a GBDT mattered more than which model was chosen. The gap between engines is real but small; the gap between tuned and untuned is the one you watched cost five points in session 3.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Pick the engine for the job</h2>
+      <span class="tag demo">★ 18 min · everyone builds</span>
+    </div>
+    <p class="lede">Five decisions on paper, each one a real decision Mango Lane will face next quarter. The leak computation in step 2 is the heart of tonight - do not skip it; it takes four minutes and inoculates you for a career.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Next quarter's brief lands: two new categorical features.</strong> acquisitionChannel, about 12 values, and favoriteCategory, about 200 values. Write which engine you reach for and the one-sentence why. A defensible answer names the 200-value column as the deciding fact - high-cardinality categoricals are CatBoost's home turf - and names what you would do instead if the team insists on staying with the current engine (encode as-of, never over the whole table).</p></div>
+      <div class="step"><p><strong>Hand-compute the leak on five rows.</strong> Channels A, A, B, B, B with churn 1, 0, 1, 1, 0. Naive encoding: A-mean = (1+0)/2 = 0.50, B-mean = (1+1+0)/3 = 0.67, every row gets its channel's mean. Now recompute each row's encoding EXCLUDING that row's own label: row 1 becomes 0.00, row 2 becomes 1.00, row 3 becomes (1+0)/2 = 0.50, row 4 becomes 0.50, row 5 becomes 1.00. Watch row 3: its feature falls from 0.67 to 0.50 the moment its own label stops contributing. That difference IS the leak - the naive feature was 0.17 of the way to being the answer key.</p></div>
+      <div class="step"><p><strong>Leaf-wise or level-wise for the 300-customer lab sample?</strong> Decide, and defend it from the docs' own caveat. The defensible call: level-wise or hard-capped leaf-wise - best-first growth chasing max delta loss on 200 training rows will chase the 10 percent label noise, which is precisely the small-data overfit the LightGBM docs warn about.</p></div>
+      <div class="step"><p><strong>Audit the course's teaching engine against tonight.</strong> Mark which of tonight's tricks it has: histogram binning beyond 8 crude thresholds - no; GOSS - no; EFB - no; leaf-wise growth - no; ordered target statistics - no, it never needed them, the six lab features are all numeric. All of them missing - and that is WHY it fits in 200 readable lines. The teaching engine demonstrates the mechanism; the libraries add the decade.</p></div>
+      <div class="step"><p><strong>Predict: would these engines beat the canon 73.0?</strong> Write your answer before session 6 measures it. The honest call: marginally at best. The lab sample carries about 10 percent label noise by construction, and no split-search trick recovers labels that are wrong - the binding constraint is the data's noise floor, not the engine. What transfers from tonight is the tuning discipline and the leak hygiene; the magic does not, because there is none.</p></div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>What to bring to session 6.</strong> Your sealed session-4 leaderboard prediction, tonight's engine picks, and your session-1 feature guesses. The finale measures everything: the five-config leaderboard live, SHAP to settle the feature guesses, and the TabPFN challenger given its honest shot.</p>
+    </div>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 6</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Read the LightGBM Features docs page</strong> - the leaf-wise section and its overfitting caveat. Note that the caveat and the feature are in the same paragraph: the library's own authors attach the warning.</li>
+      <li><strong>Run the leak computation on your own data shape.</strong> Take any categorical column you have ever target-encoded (or might), pick five rows, and do the include-versus-exclude computation from step 2. If the two encodings differ visibly, your real pipeline needs the as-of discipline.</li>
+      <li><strong>Read the CatBoost abstract</strong> (arXiv 1706.09516) and find both halves of the fix - the ordered statistics and the ordered boosting. One sentence each, your words.</li>
+      <li><strong>Write the 20x claim correctly from memory,</strong> including its baseline, then check yourself against the paper. If you wrote "faster than XGBoost", tonight's part 1 wants a re-read.</li>
+      <li><strong>Optional:</strong> find one public benchmark comparing the three engines, and check whether it tuned all three equally hard. Most do not - and now you know why that vitiates the comparison.</li>
+    </ol>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 5 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">1 · GOSS drops a large share of training rows from the gain estimate. Which rows, and why is that safe?</p>
+      <button class="qopt" type="button">A · Random rows - it is ordinary subsampling under a new name</button>
+      <button class="qopt" type="button">B · The rows with the largest gradients, because they are probably outliers</button>
+      <button class="qopt" type="button">C · Rows with small gradients - the model already predicts them well, so they contribute little to estimating where the next split should go</button>
+      <p class="qwhy">The paper's words: exclude a significant proportion of instances with small gradients and use the rest to estimate information gain. Small gradient = small residual = already learned - session 3's shrinking bars. The big-gradient rows are where the remaining signal lives, so keeping them preserves the gain estimate. Dropping the LARGE gradients would discard exactly the rows boosting exists to chase.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">2 · In the five-row toy (A,A,B,B,B with churn 1,0,1,1,0), row 3's naive encoding is 0.67 but drops to 0.50 when its own label is excluded. What does that difference demonstrate?</p>
+      <button class="qopt" type="button">A · Target leakage: the naive feature contains part of row 3's own answer, which the model will exploit in training and miss in production</button>
+      <button class="qopt" type="button">B · That the B channel genuinely churns more than the A channel</button>
+      <button class="qopt" type="button">C · A rounding artifact that disappears with more data</button>
+      <p class="qwhy">The 0.17 gap is row 3's own label leaking into row 3's own feature - CatBoost's "special kind of target leakage" causing a prediction shift. It shrinks with more rows per category but never disappears, and it is worst exactly where target encoding is most tempting: high-cardinality categories with few rows each. Ordered statistics close it by letting each row see only the permutation prefix before it.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">3 · The LightGBM paper reports a speedup of "up to over 20 times". Over what baseline?</p>
+      <button class="qopt" type="button">A · Over XGBoost, in a head-to-head benchmark</button>
+      <button class="qopt" type="button">B · Over conventional pre-sorted GBDT - the exact-scan baseline the paper's tricks approximate</button>
+      <button class="qopt" type="button">C · Over training the same model on CPU instead of GPU</button>
+      <p class="qwhy">The paper's claim is versus conventional GBDT with pre-sorted exact split search, "while achieving almost the same accuracy". "20x faster than XGBoost" changes the baseline and becomes a different, unsupported claim - the same denominator discipline as session 4's 17-of-29. Check what a speedup is measured against before repeating it.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ OFFICIAL COVERAGE ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Ke et al., LightGBM, NeurIPS 2017</span><span class="note">GOSS and EFB quoted verbatim; the 20x claim carried with its pre-sorted-GBDT baseline; leaf-wise cited from the docs with the docs' caveat</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Prokhorenkova et al., CatBoost, NeurIPS 2018</span><span class="note">Prediction shift and target leakage in the paper's vocabulary; ordered statistics and ordered boosting as the two-part fix</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">ML Contests, State of ML Competitions 2024</span><span class="note">The revealed-preference tally: 16 LightGBM, 13 CatBoost, 8 XGBoost, mixed ensembles common</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">McElfresh et al., NeurIPS 2023</span><span class="note">Cited tonight as the tuning-beats-choosing reminder; the full treatment anchors sessions 1 and 6</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Full source map with every URL and every honesty caveat: <span class="mono">materials/official-course-map.md</span> in this repo.</p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 5 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>GOSS</b><span>Drop most small-gradient rows, keep the big ones - the already-learned rows barely move the gain estimate.</span></div>
+      <div class="cheat-item"><b>EFB</b><span>Bundle mutually exclusive sparse features into shared columns. Fewer columns, same information.</span></div>
+      <div class="cheat-item"><b>Leaf-wise, with its leash</b><span>Best-first growth chases max delta loss. Docs' own caveat: on small data it overfits - cap max_depth.</span></div>
+      <div class="cheat-item"><b>20x, right baseline</b><span>Versus conventional pre-sorted GBDT, at almost the same accuracy. Never "20x faster than XGBoost".</span></div>
+      <div class="cheat-item"><b>The leak</b><span>Naive target encoding puts each row's own label in its own feature. Ordered statistics: use only the permutation prefix.</span></div>
+      <div class="cheat-item"><b>Choosing, honestly</b><span>XGBoost: battle-tested reference. LightGBM: biggest data, fastest. CatBoost: high-cardinality categoricals. Tuning matters more.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>The finale, and everything gets measured. Session 6: the five-config leaderboard fitted live at a button press - including your sealed prediction; the ESL tuning strategy run to its conclusion; SHAP and TreeExplainer answering "why did the model flag me" for real customers; and the TabPFN challenger given its honest, dated shot at the trees.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 5 of 6 · learn-ensemble-methods-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="04-xgboost.html">← Prev: XGBoost</a> &nbsp;·&nbsp; <a href="06-tune-explain-ship.html">Next: Tune, explain, ship →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=1"></script>
+</body>
+</html>

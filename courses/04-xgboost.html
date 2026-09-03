@@ -1,0 +1,451 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 4 of 6. What XGBoost adds to the boosting loop you already drove: the regularized objective, the second-order trick with its honest lineage, the famous Kaggle statistic quoted properly, and the four knobs that matter.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="XGBoost - learn ensemble methods with phoebe">
+<meta property="og:description" content="Session 4 of 6. The industrial boosting engine: regularization, split gain, the honest 17-of-29 statistic, and the four knobs.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/courses/04-xgboost.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="XGBoost - learn ensemble methods with phoebe">
+<meta name="twitter:description" content="Session 4 of 6. From the teaching engine to the industrial one, quote by quote.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 4 · XGBoost - learn ensemble methods with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-ensemble-methods-with-phoebe</a> / Session 4 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Ensemble Methods with Phoebe · Session 4 of 6</div>
+    <h1>XGBoost: the loop, <span class="accent">industrialized</span></h1>
+    <p class="sub">Session 3's engine was two hundred honest lines: eight candidate thresholds, Newton leaves, nothing else. XGBoost is the same residual loop after a decade of engineering - an objective that makes every split pay for its own complexity, a second-order gain formula with a lineage older than the library, and a short list of knobs that do what session 3's dials did, properly named. Tonight you read the famous paper the way it was written, including the statistic everyone misquotes, and tune the whole thing on paper before session 6 lets you press the buttons.</p>
+    <div class="chip-row">
+      <span class="chip level">🟡 Medium</span>
+      <span class="chip audience">Builders - you drove the loop in session 3</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:5">3-22 · What the industrial engine adds</span>
+      <span class="a3" style="flex:4">22-40 · Build-along: the four knobs on paper</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>From the teaching engine to the industrial one</h2>
+    </div>
+    <p class="lede">You have already run the loop that matters: score everyone, compute residuals, fit a small tree to them, add it scaled by the learning rate, repeat - and you watched the ESL law turn 68 into 73 on the Mango Lane holdout. The course engine that did it is deliberately minimal: quantile splits over eight candidate thresholds, Newton leaves, and no regularization beyond that. XGBoost - Chen and Guestrin, KDD 2016 - ships the identical loop plus everything a decade of production pressure taught the field to bolt on. Tonight is about knowing precisely which parts you already own and which parts are new.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> The regularized objective read as a pricing scheme - gamma as the fee per leaf, lambda as the tax on big leaf weights. The famous 17-of-29 statistic quoted the way the paper wrote it, which is not the way conference talks repeat it. And four knobs mapped one-to-one onto failures you have already watched happen live.</p>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>What carries over verbatim<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Three things transfer from session 3 with no translation at all: <strong>residual fitting</strong> (each round's tree still targets what the current model gets wrong), <strong>shrinkage</strong> (the learning rate still scales every tree's contribution, and the ESL law still says keep it small), and <strong>early stopping</strong> (still the way you choose the number of rounds, now built in as a first-class parameter instead of you eyeballing a curve).</p>
+        <p>What changes is threefold: <strong>regularization</strong> - the objective itself now charges for complexity, rather than relying on you to keep the trees shallow by hand; <strong>split quality</strong> - the gain formula uses second-order information, the grown-up version of session 3's Newton leaves; and <strong>scale</strong> - sparsity handling, cache-aware layouts, out-of-core computation, the systems half of the paper that this course points at without re-teaching. Same loop. Better priced, better measured, vastly faster.</p>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>This is the correct mental model for most industrial ML tools: not a new idea, but an old idea that finally pays its engineering bills. If you can narrate session 3's loop on a napkin, nothing in the XGBoost paper is conceptually new to you - which is exactly the position from which the paper is worth reading.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Tonight's four symbols, before the formulas<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong>g (gradient)</strong> - each customer's first-derivative of the loss: session 3's residual, direction and size of the current mistake.</li>
+          <li><strong>h (hessian)</strong> - the second derivative: for log-loss, p(1-p), the same quantity that sat in session 3's Newton leaf denominator. Near-zero when the model is already confident.</li>
+          <li><strong>G, H</strong> - the sums of g and h over all customers in a node. Every score tonight is built from these two sums.</li>
+          <li><strong>gamma, lambda</strong> - the two prices: gamma per leaf added, lambda on the size of each leaf's weight.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 1 ============ -->
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers the regularized objective</span>
+      <h2>Every split must buy its complexity</h2>
+      <span class="tag concept">7 min live</span>
+    </div>
+    <p class="lede">Session 3's engine grew a tree whenever a split improved fit at all. XGBoost changes the question: it adds explicit penalties to the objective - gamma for every leaf the tree carries, lambda on the squared leaf weights - so a candidate split has to improve fit by MORE than the complexity it adds. Simplicity stops being a habit you maintain and becomes a term in the math.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Anatomy of the XGBoost split gain: half of left child score plus right child score minus parent score, minus gamma, where gamma is the price of a leaf">
+        <style>
+          .e4aH { font: 700 13px Inter, sans-serif; fill: #fff; }
+          .e4aS { font: 400 11px Inter, sans-serif; fill: #FEF9C3; }
+          .e4aK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e4aL { font: 600 12px Inter, sans-serif; fill: #1C1917; }
+          .e4aO { font: 800 16px Inter, sans-serif; fill: #1C1917; }
+          .e4aN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e4aT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e4aT" x="60" y="44">THE SPLIT GAIN, PIECE BY PIECE · G AND H ARE SUMS OF GRADIENTS AND HESSIANS IN EACH NODE</text>
+        <text class="e4aO" x="60" y="118">gain = ½ [</text>
+        <rect x="150" y="76" width="160" height="70" rx="12" fill="#4D7C0F"/>
+        <text class="e4aH" x="230" y="106" text-anchor="middle">GL² / (HL + λ)</text>
+        <text class="e4aS" x="230" y="128" text-anchor="middle">left child score</text>
+        <text class="e4aO" x="322" y="118">+</text>
+        <rect x="344" y="76" width="160" height="70" rx="12" fill="#65A30D"/>
+        <text class="e4aK" x="424" y="106" text-anchor="middle">GR² / (HR + λ)</text>
+        <text class="e4aL" x="424" y="128" text-anchor="middle">right child score</text>
+        <text class="e4aO" x="516" y="118">-</text>
+        <rect x="536" y="76" width="164" height="70" rx="12" fill="#D9F99D"/>
+        <text class="e4aK" x="618" y="106" text-anchor="middle">G² / (H + λ)</text>
+        <text class="e4aL" x="618" y="128" text-anchor="middle">score if not split</text>
+        <text class="e4aO" x="712" y="118">] -</text>
+        <rect x="746" y="76" width="74" height="70" rx="12" fill="#CA8A04"/>
+        <text class="e4aK" x="783" y="106" text-anchor="middle">γ</text>
+        <text class="e4aL" x="783" y="128" text-anchor="middle">the fee</text>
+        <rect x="60" y="188" width="760" height="46" rx="10" fill="#FEF9C3"/>
+        <text class="e4aK" x="440" y="216" text-anchor="middle">Gamma is the price of a leaf: the split only happens if the improvement still clears zero after paying it.</text>
+        <rect x="60" y="252" width="760" height="46" rx="10" fill="#F7FEE7"/>
+        <text class="e4aK" x="440" y="280" text-anchor="middle">Lambda sits in every denominator, shrinking each leaf score - big confident leaf weights get taxed first.</text>
+        <text class="e4aN" x="60" y="336">Session 3's engine asked "does this split improve fit at all?" XGBoost asks "does it improve fit enough to be worth a leaf?"</text>
+        <text class="e4aN" x="60" y="360">Same greedy search over candidate thresholds, node by node - only the scoring rule changed.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the split-gain formula as a pricing scheme, with gamma as the fee per leaf</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Why pricing complexity works<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Recall session 3's diagnosis of the 32-point gap: deep trees kept splitting because splits kept helping on the training data - and past some point the only thing left to help with was noise. Gamma attacks that mechanism directly. A split that separates real signal produces a large gain and pays the fee easily; a split that merely carves off a few noisy customers produces a marginal gain, and the fee kills it. The paper states the intent plainly:</p>
+        <div class="prompt-box good">
+          <span class="label">★ Chen &amp; Guestrin, KDD 2016 - the objective's design goal</span>
+"the regularized objective will tend to select a model employing
+simple and predictive functions"
+        </div>
+        <p>Simple AND predictive - the objective encodes the trade instead of leaving it to discipline. In the build-along you will compute one gain by hand at gamma zero and gamma two and watch a borderline split flip from worth-it to not. That flip, repeated thousands of times per tree, is where the industrial engine's restraint comes from.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The second-order trick, with its honest lineage<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Session 3's plain loop used only the residual - the gradient. XGBoost's objective uses the gradient AND the hessian, a second-order Taylor expansion of the loss: it knows not just which direction each customer's error points, but how much curvature there is - how quickly a correction stops helping. That is what the G and H sums in the gain formula carry.</p>
+        <p>You have already met this idea in miniature. Session 3's Newton leaves set each leaf value to the residual sum divided by the sum of p(1-p) - gradient sum over hessian sum. XGBoost's optimal leaf weight is the same shape with lambda in the denominator. And the lineage is worth stating precisely, because the paper itself does: XGBoost credits the second-order method to earlier work - it "originated from Friedman et al.", the LogitBoost line of 2000. <strong>XGBoost popularized second-order boosting; it did not invent it.</strong> Knowing that is the difference between reading the paper and being impressed by it.</p>
+        <div class="callout tip">
+          <p><strong>Why practitioners should care about the hessian at all.</strong> p(1-p) is near zero exactly when the model is already confident. A node full of confidently-predicted customers has a tiny H, which makes its score explode unless lambda holds it down, and which is precisely the situation one of tonight's four knobs - min_child_weight - exists to forbid. The theory and the knob are the same fact.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The systems half, in one paragraph<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Half the KDD paper is systems engineering this course deliberately does not re-teach: a sparsity-aware split algorithm with a learned default direction for missing values, compressed column blocks for cache-friendly threshold scans, and out-of-core training for data that exceeds memory. The one-sentence takeaway: the reason XGBoost conquered practice was never just the math - it was that the math shipped inside an engine that ran fast on ugly real data. Scale is a feature.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers the famous statistic</span>
+      <h2>The 17-of-29 stat, quoted properly</h2>
+      <span class="tag concept">6 min live</span>
+    </div>
+    <p class="lede">One statistic from the paper's introduction gets repeated in every XGBoost talk, and almost always with the scope filed off. The caveat IS the lesson tonight: learn to quote this one correctly and you will never again trust a secondhand benchmark claim without checking its denominator.</p>
+
+    <div class="prompt-box good">
+      <span class="label">★ Chen &amp; Guestrin, KDD 2016 - the exact words</span>
+"Among the 29 challenge winning solutions published at Kaggle's blog
+during 2015, 17 solutions used XGBoost. Among these solutions, eight
+solely used XGBoost... the second most popular method, deep neural
+nets, was used in 11 solutions."
+    </div>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 400" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The 17-of-29 statistic drawn honestly: all 2015 Kaggle competitions contain a smaller curated set of 29 blog-published winning solutions, of which 17 used XGBoost and 8 used it solely">
+        <style>
+          .e4bH { font: 700 13px Inter, sans-serif; fill: #fff; }
+          .e4bS { font: 400 11px Inter, sans-serif; fill: #FEF9C3; }
+          .e4bK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e4bL { font: 600 11px Inter, sans-serif; fill: #1C1917; }
+          .e4bR { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .e4bN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e4bT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e4bT" x="60" y="44">THE DENOMINATOR MATTERS · EACH BOX SITS INSIDE THE ONE AROUND IT</text>
+        <rect x="60" y="62" width="460" height="256" rx="12" fill="#F7FEE7" stroke="#D6D3D1" stroke-width="1.5"/>
+        <text class="e4bL" x="80" y="88">All 2015 Kaggle competitions</text>
+        <rect x="90" y="106" width="400" height="192" rx="10" fill="#D9F99D"/>
+        <text class="e4bK" x="110" y="132">29 winning solutions</text>
+        <text class="e4bK" x="110" y="150">published at Kaggle's blog</text>
+        <text class="e4bL" x="110" y="168">a curated subset of write-ups</text>
+        <rect x="120" y="184" width="340" height="94" rx="10" fill="#4D7C0F"/>
+        <text class="e4bH" x="140" y="214">17 used XGBoost</text>
+        <text class="e4bS" x="140" y="236">8 solely XGBoost</text>
+        <text class="e4bS" x="140" y="256">deep neural nets: 11 solutions</text>
+        <rect x="556" y="62" width="264" height="108" rx="12" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+        <text class="e4bR" x="576" y="90">The misquote to retire:</text>
+        <text class="e4bR" x="576" y="110">"17 of 29 competitions"</text>
+        <text class="e4bL" x="576" y="134">Wrong denominator. The 29</text>
+        <text class="e4bL" x="576" y="152">are blog posts, not contests.</text>
+        <rect x="556" y="190" width="264" height="128" rx="12" fill="#FEF9C3"/>
+        <text class="e4bK" x="576" y="218">Same paper, same year:</text>
+        <text class="e4bL" x="576" y="238">KDDCup 2015 - "used by every</text>
+        <text class="e4bL" x="576" y="256">winning team in the top-10".</text>
+        <text class="e4bL" x="576" y="280">That one needs no trimming;</text>
+        <text class="e4bL" x="576" y="298">quote it instead.</text>
+        <text class="e4bN" x="60" y="352">Note 17 + 11 is more than 29: solutions used several methods at once, which is why "solely" was worth counting.</text>
+        <text class="e4bN" x="60" y="376">The honest picture is still overwhelming. Precision does not weaken the claim - it makes it citable.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the statistic drawn with its real denominator; the nesting is the correction</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Why the caveat is the lesson<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The 29 are winning solutions <strong>published at Kaggle's blog</strong> during 2015 - a curated subset, written up because they were interesting, not a census of every competition run that year. Say "17 of 29 competitions" and you have changed the denominator, the population, and the claim. The paper's own KDDCup 2015 line - used by every winning team in the top-10 - is a complete census of its scope and needs no such care, which is exactly why the paper offers both.</p>
+        <p>This is the same skill session 1 taught with the Grinsztajn scope words: a claim quoted with its boundary attached survives scrutiny; the punchy version dies at the first person who checks. In a churn readout at Mango Lane, "our model family won 17 of 29 Kaggle competitions" is a sentence a sharp CFO can dismantle in one question. The precise version cannot be.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The record since - the ideas won, the brand rotated<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Freeze-framing 2015 would be its own dishonesty. The current tally, from the State of ML Competitions 2024 report: among 2024 winning solutions, <strong>16 used LightGBM, 13 CatBoost, 8 XGBoost</strong>. XGBoost is no longer even the most-used booster in competitions - and that is fine, because every one of those winners is running the same regularized second-order residual loop this session teaches. The paradigm XGBoost proved is what dominates; the specific binary rotates with the years.</p>
+        <p>Session 5 covers exactly what LightGBM and CatBoost changed to earn those numbers. Nothing in tonight's math gets thrown away - it gets built on.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3 ============ -->
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers the knobs that matter</span>
+      <h2>Four knobs, each mapped to a failure you have watched</h2>
+      <span class="tag concept">6 min live</span>
+    </div>
+    <p class="lede">XGBoost exposes dozens of parameters; four do most of the work, and every one of them is a session-3 lesson wearing a parameter name. Tune these plus early stopping and you are doing what the McElfresh finding from session 1 said matters most: light tuning of a GBDT, not model-family debates.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The four XGBoost knobs as dials: max depth, learning rate, subsample and colsample, and min child weight, each labeled with the failure it prevents">
+        <style>
+          .e4cH { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e4cL { font: 600 11px Inter, sans-serif; fill: #1C1917; }
+          .e4cP { font: 700 11px Inter, sans-serif; fill: #991B1B; }
+          .e4cN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e4cT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e4cT" x="60" y="40">FOUR DIALS, EACH LABELED WITH THE FAILURE IT PREVENTS · TURN LEFT = MORE RESTRAINT</text>
+        <rect x="60" y="60" width="180" height="210" rx="12" fill="#F7FEE7" stroke="#4D7C0F" stroke-width="1.5"/>
+        <path d="M 120 130 A 30 30 0 0 1 180 130" fill="none" stroke="#D6D3D1" stroke-width="5"/>
+        <line x1="150" y1="130" x2="132" y2="108" stroke="#CA8A04" stroke-width="3"/>
+        <text class="e4cH" x="150" y="160" text-anchor="middle">max_depth</text>
+        <text class="e4cL" x="150" y="182" text-anchor="middle">session 3's depth dial</text>
+        <text class="e4cL" x="150" y="200" text-anchor="middle">shallow = weak on purpose</text>
+        <text class="e4cP" x="150" y="228" text-anchor="middle">prevents: deep trees</text>
+        <text class="e4cP" x="150" y="246" text-anchor="middle">grabbing noise (the 32 gap)</text>
+        <rect x="253" y="60" width="180" height="210" rx="12" fill="#F7FEE7" stroke="#4D7C0F" stroke-width="1.5"/>
+        <path d="M 313 130 A 30 30 0 0 1 373 130" fill="none" stroke="#D6D3D1" stroke-width="5"/>
+        <line x1="343" y1="130" x2="325" y2="108" stroke="#CA8A04" stroke-width="3"/>
+        <text class="e4cH" x="343" y="160" text-anchor="middle">learning_rate (eta)</text>
+        <text class="e4cL" x="343" y="182" text-anchor="middle">the ESL law: keep v</text>
+        <text class="e4cL" x="343" y="200" text-anchor="middle">under 0.1, let M grow</text>
+        <text class="e4cP" x="343" y="228" text-anchor="middle">prevents: big greedy</text>
+        <text class="e4cP" x="343" y="246" text-anchor="middle">steps that memorize</text>
+        <rect x="446" y="60" width="180" height="210" rx="12" fill="#F7FEE7" stroke="#4D7C0F" stroke-width="1.5"/>
+        <path d="M 506 130 A 30 30 0 0 1 566 130" fill="none" stroke="#D6D3D1" stroke-width="5"/>
+        <line x1="536" y1="130" x2="518" y2="108" stroke="#CA8A04" stroke-width="3"/>
+        <text class="e4cH" x="536" y="160" text-anchor="middle">subsample + colsample</text>
+        <text class="e4cL" x="536" y="182" text-anchor="middle">random rows and columns</text>
+        <text class="e4cL" x="536" y="200" text-anchor="middle">per tree</text>
+        <text class="e4cP" x="536" y="228" text-anchor="middle">prevents: every tree</text>
+        <text class="e4cP" x="536" y="246" text-anchor="middle">fitting identical noise</text>
+        <rect x="639" y="60" width="180" height="210" rx="12" fill="#F7FEE7" stroke="#4D7C0F" stroke-width="1.5"/>
+        <path d="M 699 130 A 30 30 0 0 1 759 130" fill="none" stroke="#D6D3D1" stroke-width="5"/>
+        <line x1="729" y1="130" x2="711" y2="108" stroke="#CA8A04" stroke-width="3"/>
+        <text class="e4cH" x="729" y="160" text-anchor="middle">min_child_weight</text>
+        <text class="e4cL" x="729" y="182" text-anchor="middle">floor on a leaf's</text>
+        <text class="e4cL" x="729" y="200" text-anchor="middle">hessian sum Σp(1-p)</text>
+        <text class="e4cP" x="729" y="228" text-anchor="middle">prevents: splits that</text>
+        <text class="e4cP" x="729" y="246" text-anchor="middle">sort the already-sorted</text>
+        <text class="e4cN" x="60" y="310">Attribution kept clean: row subsampling descends from Friedman's SEPARATE 2002 stochastic gradient boosting paper, not the 2001 GBM paper.</text>
+        <text class="e4cN" x="60" y="334">The fifth control rides shotgun on all four: early stopping is a first-class parameter, not a curve you eyeball.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the four knobs, each one a session-3 failure mode with a parameter name</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The knob-to-failure map, one row each<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <table class="clean">
+          <tr><th>Knob</th><th>What it is</th><th>Failure it prevents</th><th>You watched it in</th></tr>
+          <tr><td>max_depth</td><td>Cap on tree depth</td><td>Deep trees grabbing noise in one greedy bite</td><td>Session 3: d6 lr .5, holdout stuck at 68</td></tr>
+          <tr><td>learning_rate (eta)</td><td>Shrinkage on every tree's contribution</td><td>Big steps that memorize before signal is exhausted</td><td>Session 3: the ESL law, 73 vs 68 measured</td></tr>
+          <tr><td>subsample / colsample</td><td>Random fraction of rows / columns per tree</td><td>Every tree seeing, and agreeing on, the same noise</td><td>Session 2's random-subsets instinct, ported to boosting</td></tr>
+          <tr><td>min_child_weight</td><td>Minimum hessian sum a child may hold</td><td>Splits whose children carry no real uncertainty</td><td>Session 3's p(1-p) denominator, now a floor</td></tr>
+        </table>
+        <p>The min_child_weight row deserves its one paragraph. A leaf full of confidently-predicted customers has p near 0 or 1 for everyone, so its hessian sum Σp(1-p) is tiny - the model has nothing left to learn there, and a split that isolates such a group is just re-sorting the already-sorted, usually along noise. Requiring each child to carry a minimum hessian sum forbids exactly those splits. It is the same quantity from session 3's Newton leaves, repurposed as a gate.</p>
+        <div class="callout tip">
+          <p><strong>Early stopping graduates tonight.</strong> In session 3 you read the crest off a live curve by eye. In XGBoost you hand the library a validation slice and a patience window, and it stops at M* for you - ESL's "choose M by early stopping", mechanized into an argument. It is the one parameter you should never train without.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Attribution corner: who invented which knob<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong>Shrinkage</strong> - Friedman 2001, the GBM paper itself; the empirical small-v law is stated in ESL 10.12.1, crediting Friedman.</li>
+          <li><strong>Row subsampling</strong> - Friedman again, but a separate 2002 paper: stochastic gradient boosting, in Computational Statistics and Data Analysis. Citing the 2001 paper for it is the most common attribution slip in the field.</li>
+          <li><strong>Second-order objective</strong> - the LogitBoost line, Friedman, Hastie and Tibshirani 2000; XGBoost's paper credits it and industrialized it.</li>
+          <li><strong>Gamma-priced splits, sparsity handling, the systems layer</strong> - genuinely XGBoost's contribution, along with making all of the above run at scale.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Paper-tune the industrial engine</h2>
+      <span class="tag demo">★ 18 min · everyone builds</span>
+    </div>
+    <p class="lede">No library tonight - deliberately. Session 6's leaderboard fits every configuration live at a button press; tonight you commit your predictions to paper first, so that when the buttons get pressed you find out what you actually understand rather than what you can retro-fit.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Write the baseline card.</strong> On paper: the tuned configuration from session 3 - depth 3, learning rate 0.1, 200 rounds - and its measured scores, train 100, holdout 73.0. Every prediction you make in the next four steps is relative to this card.</p></div>
+      <div class="step"><p><strong>Predict each knob-turn before the leaderboard exists.</strong> Three moves, one predicted holdout number each, with a one-line reason: (a) deeper - depth 6 with learning rate 0.5; (b) faster - keep depth 3 but raise the rate to 0.5; (c) no early stop - the tuned recipe's careless cousin run to 600 rounds at d6 lr .5. You have seen two of these three answers measured already; the reasoning, not the recall, is the exercise.</p></div>
+      <div class="step"><p><strong>Compute one split gain by hand, twice.</strong> A candidate split gives left child G=4, H=4; right child G=-2, H=3; so the parent holds G=2, H=7. Take lambda = 1. Gain = ½ × [ GL²/(HL+λ) + GR²/(HR+λ) - G²/(H+λ) ] - γ. With γ = 0: ½ × [16/5 + 4/4 - 4/8] = ½ × 3.7 = 1.85 - the split is worth making. Now charge for the leaf, γ = 2: 1.85 - 2 = -0.15. The same split flips to not-worth-it. You have just done, once, what the engine does thousands of times per tree.</p></div>
+      <div class="step"><p><strong>Write min_child_weight in one sentence, from the hessian intuition.</strong> Something like: "a leaf of confident predictions has a tiny Σp(1-p), so this knob refuses splits whose children carry no real uncertainty left to learn." If your sentence needs the phrase "sorts the already-sorted", it is working.</p></div>
+      <div class="step"><p><strong>Seal your leaderboard.</strong> Rank all five canon configurations - single tree d6, bagged forest, boosting untuned d6 lr .5, boosting tuned d3 lr .1 200 rounds, and 600-trees-careless - by predicted holdout, and write one sentence on the gap you expect between first and second place. Fold the paper. It stays sealed until session 6's buttons settle it.</p></div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>Why paper before buttons.</strong> The leaderboard will take ninety seconds to run. The predictions take fifteen minutes to reason through - and the fifteen minutes are where the knobs stop being names and become levers you can feel. A wrong sealed prediction teaches more than a right retro-diction.</p>
+    </div>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 5</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Read the XGBoost paper's introduction and section 2</strong> (arXiv 1603.02754) - about four pages. Underline the 17-of-29 sentence and the "simple and predictive functions" sentence; you now know both by heart, so check yourself.</li>
+      <li><strong>Find the misquote in the wild.</strong> Search for a blog post or talk that says XGBoost "won 17 of 29 Kaggle competitions" or similar. Write the corrected sentence under it in your notes. This usually takes under five minutes, which is itself the lesson.</li>
+      <li><strong>Run the gain formula once more with your own numbers.</strong> Invent G and H values for a split you think is marginal, and find the gamma that kills it. You are calibrating your sense of what "the price of a leaf" costs.</li>
+      <li><strong>Map the four knobs to one other library.</strong> scikit-learn's GradientBoostingClassifier exposes cousins of each (max_depth, learning_rate, subsample, min-samples-style floors). Note where the names differ and where the ideas do not.</li>
+      <li><strong>Optional:</strong> explain to a colleague why "XGBoost invented second-order boosting" is wrong, in two sentences, with the year 2000 in one of them.</li>
+    </ol>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 4 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · The famous XGBoost statistic from the KDD 2016 paper - what does it actually say?</p>
+      <button class="qopt" type="button">A · XGBoost won 17 of the 29 Kaggle competitions held in 2015</button>
+      <button class="qopt" type="button">B · Among the 29 challenge winning solutions published at Kaggle's blog during 2015, 17 used XGBoost - and 8 of those used XGBoost alone</button>
+      <button class="qopt" type="button">C · XGBoost beat deep neural nets in every 2015 Kaggle competition</button>
+      <p class="qwhy">The denominator is 29 winning solutions published at Kaggle's blog - a curated subset of write-ups, not a census of competitions. Deep nets appeared in 11 of the same solutions, which is why "solely" was worth counting. The paper's KDDCup 2015 claim - used by every winning team in the top-10 - is the one that needs no trimming.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · A candidate split has a raw structure-score improvement of 1.85. What does setting gamma = 2 do to it?</p>
+      <button class="qopt" type="button">A · Nothing - gamma only affects the learning rate schedule</button>
+      <button class="qopt" type="button">B · It shrinks the leaf weights of both children toward zero</button>
+      <button class="qopt" type="button">C · The gain becomes 1.85 - 2 = -0.15, so the split is not made: the improvement no longer pays for the extra leaf</button>
+      <p class="qwhy">Gamma is the price of a leaf, subtracted from every candidate split's gain. Marginal splits - the kind that mostly carve off noise - fail to clear the fee and are simply not made. Shrinking leaf weights is lambda's job, in the denominators; the two penalties tax different things.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · Where does the second-order (gradient plus hessian) method in XGBoost's objective come from?</p>
+      <button class="qopt" type="button">A · The paper credits it to earlier work - Friedman, Hastie and Tibshirani's LogitBoost line of 2000; XGBoost popularized and industrialized it</button>
+      <button class="qopt" type="button">B · Chen and Guestrin invented it from scratch in 2016</button>
+      <button class="qopt" type="button">C · It was first introduced by LightGBM and back-ported into XGBoost</button>
+      <p class="qwhy">The XGBoost paper itself states the second-order method originated from Friedman et al. - the LogitBoost work of 2000. You met the idea in miniature in session 3's Newton leaves: residual sum over Σp(1-p). Giving lineage correctly is not pedantry; it tells you which ideas are load-bearing and forty years deep versus which are packaging.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ OFFICIAL COVERAGE ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Chen &amp; Guestrin, KDD 2016</span><span class="note">The regularized objective, the split gain, the second-order lineage, and the 17-of-29 statistic quoted with its exact scope</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">ML Contests, State of ML Competitions 2024</span><span class="note">The current tally - 16 LightGBM, 13 CatBoost, 8 XGBoost - showing the ideas outlived the brand</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Friedman, Stochastic Gradient Boosting 2002</span><span class="note">Named to keep the attribution clean: row subsampling is this separate paper, not the 2001 GBM paper</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Full source map with every URL and every honesty caveat: <span class="mono">materials/official-course-map.md</span> in this repo.</p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 4 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>The objective</b><span>Loss plus complexity: gamma per leaf, lambda on leaf weights. Chosen to favor "simple and predictive functions".</span></div>
+      <div class="cheat-item"><b>Gamma is the fee</b><span>Split gain = ½[left + right - parent] - γ. A split happens only if the improvement pays for the leaf it adds.</span></div>
+      <div class="cheat-item"><b>Second-order, second-hand</b><span>Gradient plus hessian comes from the LogitBoost line, 2000. XGBoost popularized it - session 3's Newton leaves were the miniature.</span></div>
+      <div class="cheat-item"><b>The stat, quotable</b><span>17 of 29 winning solutions PUBLISHED AT KAGGLE'S BLOG in 2015 used XGBoost; 8 solely. Never "17 of 29 competitions".</span></div>
+      <div class="cheat-item"><b>Four knobs</b><span>max_depth, eta, subsample/colsample, min_child_weight - each one a session-3 failure with a parameter name.</span></div>
+      <div class="cheat-item"><b>Early stopping is a parameter</b><span>Hand it a validation slice and a patience window. Never train without it - ESL's M*, mechanized.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>XGBoost priced complexity; the next two engines made different bets. Session 5: how LightGBM goes fast - histogram binning, GOSS, EFB, leaf-wise growth with the overfitting caveat the docs themselves attach - and the subtle target leak that CatBoost's ordered boosting was built to fight, hand-computed on five rows so you can never unsee it.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 4 of 6 · learn-ensemble-methods-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="03-the-residual-game.html">← Prev: The residual game</a> &nbsp;·&nbsp; <a href="05-lightgbm-and-catboost.html">Next: LightGBM &amp; CatBoost →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=1"></script>
+</body>
+</html>

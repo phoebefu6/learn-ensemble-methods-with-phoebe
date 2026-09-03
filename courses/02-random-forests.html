@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 2 of 6. The Breiman recipe: bootstrap sampling, random feature subsets, deep trees and a vote - why averaging unstable trees buys ten holdout points on the Mango Lane churn data, and the out-of-bag trick that validates for free.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="Random forests - learn ensemble methods with phoebe">
+<meta property="og:description" content="Session 2 of 6. Bagging, random feature subsetting and out-of-bag error, quoted at the source and built by hand.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/courses/02-random-forests.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Random forests - learn ensemble methods with phoebe">
+<meta name="twitter:description" content="Session 2 of 6. The Breiman recipe, built by hand on the course data.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 2 · Random forests - learn ensemble methods with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-ensemble-methods-with-phoebe</a> / Session 2 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Ensemble Methods with Phoebe · Session 2 of 6</div>
+    <h1>Random <span class="accent">forests</span></h1>
+    <p class="sub">Session 1 ended on a wound: one deep tree at 75 percent on the customers it studied and 58 on the customers it never met. Tonight the first cure, and it is almost embarrassingly simple - train sixty different trees and let them vote. The craft is in the word different: bootstrap samples so each tree sees its own world, random feature subsets so the trees cannot all copy each other, and a free validation trick hiding inside the leftovers. All of it from Breiman's own two papers, quoted, then built on paper with your own hands.</p>
+    <div class="chip-row">
+      <span class="chip level">🟢 Easy</span>
+      <span class="chip audience">Builders - you hand-built a split in session 1</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:5">3-22 · The Breiman recipe</span>
+      <span class="a3" style="flex:4">22-40 · Build-along: build the forest's logic by hand</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Where session 1 left you</h2>
+    </div>
+    <p class="lede">You hand-built a split on the Mango Lane data, then watched a depth-6 tree score <strong>75.0 on training and 58.0 on holdout</strong> - a 17-point gap made of memorized noise. Tonight's promise is specific and measured: the same trees, bagged and decorrelated, land at <strong>68.0 holdout - averaging is worth ten points</strong> on this data. Not a slide claim; session 3's live engine re-measures it in your browser.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> Breiman's instability argument, quoted, so you know why bagging works and when it will not. The one idea that makes a forest more than bagged trees - random feature subsets - with its honest credit lineage. And out-of-bag error, the free lunch: a validation score you did not have to pay a test set for.</p>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The recipe in one breath<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A random forest is four decisions, and you already understand three of them from session 1:</p>
+        <ul>
+          <li><strong>Bootstrap sample per tree</strong> - each tree trains on 200 customers drawn WITH replacement from the 200. Different tree, different world.</li>
+          <li><strong>Random feature subset per split</strong> - at every node, a tree may only consider a random handful of the six features. This is the part that is actually new, and the part that earns the name.</li>
+          <li><strong>Deep trees, on purpose</strong> - the instability that ruined the single tree is the fuel here. Do not prune the very thing you are about to average away.</li>
+          <li><strong>Vote</strong> - sixty churn calls per customer, majority wins.</li>
+        </ul>
+        <p>Everything in the next forty minutes is one of these four decisions examined properly.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Say it before you build it<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Before class, try saying the recipe out loud without the page. The order matters: bootstrap gives each tree its own sample, feature subsetting gives each tree its own perspective, depth keeps each tree opinionated, and the vote turns sixty opinionated witnesses into one calm verdict. If you can say why each step exists, session 3's boosting - which deletes the vote and replaces it with a chain - will land in minutes.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 1 ============ -->
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers bagging, from the instability insight</span>
+      <h2>Bagging: many worlds, one vote</h2>
+      <span class="tag concept">7 min live</span>
+    </div>
+    <p class="lede">Bagging is 1996 Breiman, and his own sentence still explains it better than any textbook paraphrase: <strong>"The vital element is the instability of the prediction method. If perturbing the learning set can cause significant changes in the predictor constructed, then bagging can improve accuracy."</strong> Read that twice - it names both the disease and the entry requirement for the cure.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 390" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Bootstrap resampling: one 200-customer training set spawns three different bootstrap worlds, each grows a different deep tree, and the trees' votes merge into one forest verdict">
+        <style>
+          .e2aH { font: 700 13px Inter, sans-serif; fill: #fff; }
+          .e2aB { font: 400 12px Inter, sans-serif; fill: #FEF9C3; }
+          .e2aK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e2aL { font: 400 12px Inter, sans-serif; fill: #1C1917; }
+          .e2aN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e2aT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <defs>
+          <marker id="e2aArr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 z" fill="#D6D3D1"/>
+          </marker>
+        </defs>
+        <text class="e2aT" x="40" y="40">BOOTSTRAP: DRAW 200 CUSTOMERS WITH REPLACEMENT, ONCE PER TREE · EACH TREE SEES A DIFFERENT WORLD</text>
+        <rect x="40" y="140" width="160" height="98" rx="12" fill="#3F6212"/>
+        <text class="e2aH" x="60" y="172">Training set</text>
+        <text class="e2aB" x="60" y="196">200 customers</text>
+        <text class="e2aB" x="60" y="214">one fixed world</text>
+        <line x1="200" y1="176" x2="272" y2="100" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <line x1="200" y1="189" x2="272" y2="189" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <line x1="200" y1="202" x2="272" y2="278" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <rect x="280" y="64" width="200" height="70" rx="10" fill="#D9F99D"/>
+        <text class="e2aK" x="296" y="88">Bootstrap world A</text>
+        <text class="e2aL" x="296" y="106">cust 12 drawn twice,</text>
+        <text class="e2aL" x="296" y="122">cust 41 never drawn</text>
+        <rect x="280" y="154" width="200" height="70" rx="10" fill="#D9F99D"/>
+        <text class="e2aK" x="296" y="178">Bootstrap world B</text>
+        <text class="e2aL" x="296" y="196">cust 41 drawn 3 times,</text>
+        <text class="e2aL" x="296" y="212">cust 12 never drawn</text>
+        <rect x="280" y="244" width="200" height="70" rx="10" fill="#D9F99D"/>
+        <text class="e2aK" x="296" y="268">Bootstrap world C</text>
+        <text class="e2aL" x="296" y="286">its own duplicates,</text>
+        <text class="e2aL" x="296" y="302">its own missing rows</text>
+        <line x1="480" y1="99" x2="528" y2="99" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <line x1="480" y1="189" x2="528" y2="189" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <line x1="480" y1="279" x2="528" y2="279" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <rect x="536" y="64" width="140" height="70" rx="10" fill="#65A30D"/>
+        <text class="e2aK" x="552" y="92">Deep tree A</text>
+        <text class="e2aL" x="552" y="112">its own splits</text>
+        <rect x="536" y="154" width="140" height="70" rx="10" fill="#65A30D"/>
+        <text class="e2aK" x="552" y="182">Deep tree B</text>
+        <text class="e2aL" x="552" y="202">different splits</text>
+        <rect x="536" y="244" width="140" height="70" rx="10" fill="#65A30D"/>
+        <text class="e2aK" x="552" y="272">Deep tree C</text>
+        <text class="e2aL" x="552" y="292">different again</text>
+        <line x1="676" y1="99" x2="724" y2="168" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <line x1="676" y1="189" x2="724" y2="189" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <line x1="676" y1="279" x2="724" y2="210" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2aArr)"/>
+        <rect x="732" y="144" width="116" height="90" rx="10" fill="#CA8A04"/>
+        <text class="e2aK" x="748" y="174">Majority</text>
+        <text class="e2aK" x="748" y="192">vote</text>
+        <text class="e2aL" x="748" y="216">one verdict</text>
+        <text class="e2aN" x="40" y="352">Perturb the sample, get a different tree - Breiman's instability, now working FOR you: private mistakes disagree and cancel.</text>
+        <text class="e2aN" x="40" y="374">Duplicates and missing customers are the point, not a bug. Roughly one-third of rows miss each world - part 3 cashes that in.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - one training set, many bootstrap worlds, one vote</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>The mechanism: sampling with replacement, deep on purpose<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>To bootstrap the Mango Lane training set, draw a customer at random from the 200, write it down, <em>put it back</em>, and repeat 200 times. Some customers appear twice or three times; others never appear at all. Do this sixty times and you have sixty overlapping-but-different training sets - sixty perturbed worlds.</p>
+        <p>Now recall session 1: a deep tree is spectacularly sensitive to its sample - move ten customers and the upper tree reshapes. Bagging turns that sensitivity into diversity. Sixty worlds produce sixty genuinely different trees, and that is why the recipe says <strong>deep trees, unpruned</strong>: instability is the fuel. Tame the trees and you starve the average.</p>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>A team at a retailer once "improved" their forest by heavily pruning every tree to make each one individually respectable. The forest got worse. Sixty polite, stable, nearly identical trees have nothing to argue about - and the argument was the value.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Why the variance cancels - and why bagging logistic regression does nothing<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Each deep tree's error has two parts: the signal it caught, and private mistakes tied to its particular bootstrap sample - which duplicates it saw, which noise-labeled customers it happened to memorize. The signal part is shared across trees; the private part is <strong>independent-ish, pointing in different directions</strong> tree by tree. Average sixty of them and the shared signal survives while the disagreements cancel toward zero. That is variance reduction, in one sentence.</p>
+        <p>The same logic says when bagging is useless. Bag sixty logistic regressions and each fit lands on nearly the same coefficients - it is a stable method, exactly the case Breiman's sentence excludes. Sixty copies of the SAME mistake do not cancel; averaging identical errors changes nothing. The cure only works on the disease.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The measured payoff on the course data<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <table class="clean">
+          <tr><th>Model</th><th>Train</th><th>Holdout</th><th>Read</th></tr>
+          <tr><td>Single tree, depth 6</td><td>75.0</td><td>58.0</td><td>memorized fragments, generalizes worst</td></tr>
+          <tr><td>Bagged forest, 60 trees d6, feature subsample</td><td>88.5</td><td><strong>68.0</strong></td><td>variance averaged away: +10 holdout</td></tr>
+        </table>
+        <p>Notice the train number went UP too, 75 to 88.5 - the forest is not weaker on the training data, it is stronger everywhere, because sixty perspectives recover signal any single perturbed tree missed. And the train-holdout gap shrank from 17 points to about 20 on a much higher base - the noise-chasing got diluted. Session 3's engine fits this exact forest live so you can watch both numbers move.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers the actual random forest contribution</span>
+      <h2>The random in random forest is not the bootstrap</h2>
+      <span class="tag concept">6 min live</span>
+    </div>
+    <p class="lede">Here is the part most blog posts flatten: bagging trees does NOT make a random forest. Breiman's 2001 definition: <strong>"Random forests are a combination of tree predictors such that each tree depends on the values of a random vector sampled independently..."</strong> - and the random vector he means governs a second randomization: <strong>at every split, the tree may only consider a random subset of the features</strong>.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 350" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Without feature subsetting all sixty trees root on daysSinceOrder and the votes are redundant; with random subsets per split the trees root differently and the votes are genuinely independent">
+        <style>
+          .e2bH { font: 700 13px Inter, sans-serif; fill: #991B1B; }
+          .e2bG { font: 700 13px Inter, sans-serif; fill: #1C1917; }
+          .e2bW { font: 700 12px Inter, sans-serif; fill: #fff; }
+          .e2bR { font: 700 12px Inter, sans-serif; fill: #991B1B; }
+          .e2bL { font: 400 12px Inter, sans-serif; fill: #1C1917; }
+          .e2bN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e2bT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e2bT" x="40" y="40">SAME BOOTSTRAP WORLDS, TWO FORESTS · THE ONLY DIFFERENCE IS THE RANDOM FEATURE SUBSET PER SPLIT</text>
+        <rect x="40" y="58" width="395" height="216" rx="12" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+        <text class="e2bH" x="60" y="88">Bagging only: every feature, every split</text>
+        <rect x="60" y="106" width="118" height="34" rx="8" fill="#FCA5A5"/>
+        <text class="e2bR" x="70" y="128">daysSinceOrder</text>
+        <rect x="188" y="106" width="118" height="34" rx="8" fill="#FCA5A5"/>
+        <text class="e2bR" x="198" y="128">daysSinceOrder</text>
+        <rect x="316" y="106" width="102" height="34" rx="8" fill="#FCA5A5"/>
+        <text class="e2bR" x="326" y="128">...same, x60</text>
+        <text class="e2bL" x="60" y="172">The loudest feature wins every root.</text>
+        <text class="e2bL" x="60" y="192">60 near-copies of one tree.</text>
+        <text class="e2bR" x="60" y="224">Correlated votes: the same mistake,</text>
+        <text class="e2bR" x="60" y="244">repeated 60 times, does NOT cancel.</text>
+        <rect x="455" y="58" width="395" height="216" rx="12" fill="#F7FEE7"/>
+        <text class="e2bG" x="475" y="88">Random forest: random subset per split</text>
+        <rect x="475" y="106" width="118" height="34" rx="8" fill="#4D7C0F"/>
+        <text class="e2bW" x="485" y="128">daysSinceOrder</text>
+        <rect x="603" y="106" width="100" height="34" rx="8" fill="#4D7C0F"/>
+        <text class="e2bW" x="613" y="128">tickets</text>
+        <rect x="713" y="106" width="118" height="34" rx="8" fill="#4D7C0F"/>
+        <text class="e2bW" x="723" y="128">sessions30d</text>
+        <text class="e2bL" x="475" y="172">Some roots never even SEE the loud</text>
+        <text class="e2bL" x="475" y="192">feature. Different roots, different trees.</text>
+        <text class="e2bG" x="475" y="224">Decorrelated votes: private mistakes</text>
+        <text class="e2bG" x="475" y="244">disagree, and disagreements cancel.</text>
+        <text class="e2bN" x="40" y="308">Breiman credits Ho 1998 (random subspaces) and Amit &amp; Geman 1997 as precursors - bagging of trees alone is NOT a random forest.</text>
+        <text class="e2bN" x="40" y="330">Randomness here is not sloppiness. It is engineered disagreement, and disagreement is what makes a vote worth counting.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - sixty clones versus sixty independent witnesses</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Why subsetting decorrelates, on Mango Lane's own columns<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>On this data, daysSinceOrder is the loudest feature - you found that yourself in session 1's hand-split. Left unconstrained, <strong>every one of the sixty trees grabs daysSinceOrder at the root</strong>, because it wins the split search in nearly every bootstrap world. Sixty trees, one skeleton: the forest degenerates into sixty near-copies, their votes redundant, and the averaging math from part 1 quietly dies - correlated errors do not cancel.</p>
+        <p>Force each split to choose from a random handful of features and some trees must open with tickets, or sessions30d, or discountShare. Those trees carve the customers along genuinely different boundaries, make genuinely different private mistakes - and the vote becomes what it pretends to be: independent witnesses, not one witness with sixty microphones.</p>
+        <p>Breiman measured what this buys: random feature selection <strong>"yields error rates that compare favorably to Adaboost... but are more robust with respect to noise."</strong> Hold that phrase - our lab data has 10 percent label noise by construction, and robustness to noise is exactly why the forest handles it with grace.</p>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Credit where it is due<span class="mini">2 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The lineage matters, and Breiman himself is careful about it: his 2001 paper credits <strong>Ho 1998 (the random subspace method)</strong> and <strong>Amit &amp; Geman 1997</strong> as precursors of the random-feature idea. So when someone tells you "random forest is just bagged trees", you now hold two corrections: it is bagging PLUS per-node feature subsetting, and the subsetting idea has its own family tree. Precision about credit is the same muscle as precision about scope - session 1 taught you the second, this is the first.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3 ============ -->
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers out-of-bag error</span>
+      <h2>Out-of-bag error: the free lunch</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Look back at the bootstrap picture: each world is missing customers. Breiman noticed the leftovers are not waste - <strong>"about one-third of the instances are left out"</strong> of each bootstrap sample, which means every customer has roughly twenty trees (of sixty) that never saw it. Score each customer using only those trees and you get a validation estimate without spending a single row on a test set.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Out-of-bag mechanism: customer 17 is in-bag for trees A and C, out-of-bag for tree B, so only tree B's vote counts toward customer 17's OOB score">
+        <style>
+          .e2cH { font: 700 13px Inter, sans-serif; fill: #fff; }
+          .e2cB { font: 400 12px Inter, sans-serif; fill: #FEF9C3; }
+          .e2cK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e2cL { font: 400 12px Inter, sans-serif; fill: #1C1917; }
+          .e2cM { font: 600 12px Inter, sans-serif; fill: #6B7280; }
+          .e2cN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e2cT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <defs>
+          <marker id="e2cArr" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 z" fill="#D6D3D1"/>
+          </marker>
+        </defs>
+        <text class="e2cT" x="40" y="40">CUSTOMER 17'S OOB SCORE: ONLY TREES WHOSE BOOTSTRAP NEVER DREW CUSTOMER 17 MAY VOTE</text>
+        <rect x="40" y="146" width="158" height="86" rx="12" fill="#CA8A04"/>
+        <text class="e2cK" x="56" y="176">Customer 17</text>
+        <text class="e2cL" x="56" y="198">62 days inactive</text>
+        <text class="e2cL" x="56" y="216">did she churn?</text>
+        <line x1="198" y1="176" x2="322" y2="96" stroke="#D6D3D1" stroke-width="2" stroke-dasharray="5 5"/>
+        <line x1="198" y1="189" x2="322" y2="189" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2cArr)"/>
+        <line x1="198" y1="202" x2="322" y2="282" stroke="#D6D3D1" stroke-width="2" stroke-dasharray="5 5"/>
+        <rect x="330" y="62" width="190" height="66" rx="10" fill="#D9F99D"/>
+        <text class="e2cK" x="346" y="88">Tree A · in-bag</text>
+        <text class="e2cL" x="346" y="108">drew cust 17 twice</text>
+        <rect x="330" y="156" width="190" height="66" rx="10" fill="#3F6212"/>
+        <text class="e2cH" x="346" y="182">Tree B · out-of-bag</text>
+        <text class="e2cB" x="346" y="202">never saw cust 17</text>
+        <rect x="330" y="250" width="190" height="66" rx="10" fill="#D9F99D"/>
+        <text class="e2cK" x="346" y="276">Tree C · in-bag</text>
+        <text class="e2cL" x="346" y="296">drew cust 17 once</text>
+        <text class="e2cM" x="540" y="92">vote ignored - it studied her,</text>
+        <text class="e2cM" x="540" y="110">so its answer is memory</text>
+        <line x1="520" y1="189" x2="608" y2="189" stroke="#D6D3D1" stroke-width="2" marker-end="url(#e2cArr)"/>
+        <text class="e2cM" x="540" y="280">vote ignored - same reason</text>
+        <rect x="616" y="152" width="224" height="74" rx="10" fill="#D9F99D"/>
+        <text class="e2cK" x="632" y="180">OOB vote for cust 17</text>
+        <text class="e2cL" x="632" y="200">only tree B counts: a real</text>
+        <text class="e2cL" x="632" y="216">test on an unseen customer</text>
+        <text class="e2cN" x="40" y="336">Across 60 trees, roughly 20 are out-of-bag for any customer. Average these honest votes over all 200 rows: the OOB error.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the leftovers of every bootstrap become a built-in test set</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>What Breiman claimed for it, and the caveat that keeps it honest<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Breiman's claim is bold and verbatim: <strong>"using the out-of-bag error estimate removes the need for a set aside test set"</strong>, and he reports the OOB estimates are <strong>"unbiased"</strong>. For every customer, some trees never saw her - their votes are honest tests, not recall. Aggregate those honest votes across all 200 training customers and you have a generalization estimate that cost you nothing.</p>
+        <p><strong>The caveat you must carry:</strong> OOB <em>overestimates</em> error early in training. With only a handful of trees grown, each customer's OOB committee is tiny - two or three trees instead of twenty - and a tiny committee votes badly. The unbiasedness arrives once enough trees are grown, not at tree five. Watch a forest's OOB curve and you will see it start pessimistic and settle as the committee fills out.</p>
+        <div class="callout tip">
+          <p><strong>One-third, from first principles.</strong> Each draw misses a given customer with probability 199/200. After 200 draws with replacement, the chance she was never drawn is (199/200)^200, about 0.37 - Breiman's "about one-third of the instances are left out" is that number, not a design choice.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>When you still want a true holdout anyway<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>OOB is forest-internal - it validates a random forest against resamples of its own training data. Two situations where that is not enough:</p>
+        <ul>
+          <li><strong>Time-based splits.</strong> Churn is a future-prediction problem: in production you train on last quarter and predict next quarter. Bootstrap resampling shuffles time away, so OOB cannot tell you whether the model survives the drift between quarters. A holdout cut by date can.</li>
+          <li><strong>Comparing across model families.</strong> Next session's booster has no bootstrap and therefore no OOB. To put a forest, a booster and a logistic regression on one honest leaderboard, they must all face the SAME unseen customers - which is exactly why this course keeps its 100-customer holdout even though tonight's model comes with free validation built in.</li>
+        </ul>
+        <p>So the working rule: OOB to monitor and tune the forest, the true holdout to judge it against everything else.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Build the forest's logic by hand</h2>
+      <span class="tag demo">★ 18 min · everyone builds</span>
+    </div>
+    <p class="lede">Sixty trees is a job for code, but every mechanism in the recipe - bootstrap, forced feature subsets, the vote, out-of-bag - fits on paper at ten customers and two trees. Get your session 1 10-customer excerpt and a die.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Bootstrap your excerpt.</strong> Number your 10 customers 0-9. Roll a die (or use a phone's random digit) 10 times, writing down the customer each roll picks - with replacement, so repeats stay. Look at your list: some customers appear twice, some never. You are holding bootstrap world A, and the missing customers are its out-of-bag set. Keep the list.</p></div>
+      <div class="step"><p><strong>Grow paper tree A under a feature handcuff.</strong> Rule: this tree may only split on {tickets, aov} - a forced random subset. Find your best split by counting, exactly like session 1. Notice what just happened: your best feature, daysSinceOrder, was not on the menu, so this tree carved the customers along a boundary your session 1 tree never considered. That difference IS the decorrelation from part 2.</p></div>
+      <div class="step"><p><strong>Grow paper tree B on a second bootstrap</strong> with the subset {daysSinceOrder, sessions30d}. Roll a fresh bootstrap first. This tree probably roots on daysSinceOrder like your session 1 tree - but on a different sample, so its threshold lands somewhere new.</p></div>
+      <div class="step"><p><strong>Hold the vote.</strong> Pick three customers from the excerpt and run each through paper tree A, paper tree B, and your session 1 tree: three churn calls per customer, majority wins. Find a customer where the vote overrules one wrong tree - that single overrule, times sixty trees and two hundred customers, is the entire ten-point payoff.</p></div>
+      <div class="step"><p><strong>Compute a tiny OOB set.</strong> For each paper tree, list the customers its bootstrap never drew. Those customers can be scored by that tree as honest unseen tests - you just computed an out-of-bag set by hand. If a customer is out-of-bag for both trees, both may vote on her; that committee-of-honest-votes is Breiman's free lunch at miniature scale.</p></div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>Bring this intuition to session 3.</strong> Voting averages away mistakes, but it cannot add signal no tree ever found - if all sixty trees miss a pattern, the vote misses it too. Session 3 replaces the vote with a chain: each new tree is trained on exactly what the previous ones got wrong. Averaging fixes variance; chaining goes after what averaging cannot touch.</p>
+    </div>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 3</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Finish the paper forest:</strong> add a third bootstrap and a third feature handcuff ({discountShare, orders90d}), grow paper tree C, and re-run the three-customer vote with four voters. Did any verdict flip?</li>
+      <li><strong>Say the recipe from memory</strong> - bootstrap per tree, random subset per split, deep trees, vote - and for each step, one sentence on what breaks without it. The subsetting sentence is the one most working data scientists cannot produce.</li>
+      <li><strong>Explain to a colleague</strong> why bagging their logistic regression will not help, using Breiman's instability sentence. If they ask "so instability is good now?", you have the conversation this session prepared you for.</li>
+      <li><strong>Read Breiman 2001, section 1 only</strong> (stat.berkeley.edu/~breiman/randomforest2001.pdf) - watch him credit Ho and Amit &amp; Geman by name, and find the definition sentence this session quoted.</li>
+      <li><strong>Optional:</strong> work out (199/200)^200 on any calculator and confirm the one-third for yourself. Small proofs you own beat big claims you rent.</li>
+    </ol>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 2 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · Bagging sixty deep trees buys ten holdout points on the course data, but bagging sixty logistic regressions barely moves the needle. Why?</p>
+      <button class="qopt" type="button">A · Logistic regression is too slow to retrain sixty times, so the ensemble never finishes</button>
+      <button class="qopt" type="button">B · Deep trees are unstable, so each bootstrap yields a genuinely different tree whose private errors point in different directions and cancel; logistic regression is stable, so every copy makes the same mistakes and averaging identical errors changes nothing</button>
+      <button class="qopt" type="button">C · Logistic regression cannot be trained on bootstrap samples because of the duplicated rows</button>
+      <p class="qwhy">Breiman 1996, verbatim: "The vital element is the instability of the prediction method. If perturbing the learning set can cause significant changes in the predictor constructed, then bagging can improve accuracy." Instability is the entry requirement - bagging helps unstable learners like deep trees and does little for stable ones. The flaw that ruined session 1's single tree is the fuel here.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · Your teammate says "a random forest is just bagged decision trees". What is missing?</p>
+      <button class="qopt" type="button">A · Nothing - Breiman's 2001 paper defines random forests as bagging applied to trees</button>
+      <button class="qopt" type="button">B · Random forests also require pruning each tree back to depth 3 before voting</button>
+      <button class="qopt" type="button">C · The per-node random feature subset: at every split each tree chooses from a random handful of features, which decorrelates the trees so their votes are genuinely independent - bagging alone leaves every tree rooting on the same loud feature</button>
+      <p class="qwhy">RF = bagging PLUS per-node random feature subsetting - "each tree depends on the values of a random vector sampled independently", in Breiman's definition. Without it, all sixty Mango Lane trees root on daysSinceOrder and become near-copies whose correlated errors do not cancel. And credit travels with the idea: Breiman himself cites Ho 1998 and Amit &amp; Geman 1997 as precursors of the random-feature trick.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · How does out-of-bag error work, and when should you distrust the number?</p>
+      <button class="qopt" type="button">A · Each customer is scored only by the roughly one-third-miss trees whose bootstrap never drew her; the estimate is unbiased once enough trees are grown, but it overestimates error early in training, when each customer's honest committee is still tiny</button>
+      <button class="qopt" type="button">B · Each tree is scored on the full training set, and the worst tree's error is reported; it is reliable from the very first tree</button>
+      <button class="qopt" type="button">C · A random third of the training set is deleted before any tree is grown and used as a classic test set at the end</button>
+      <p class="qwhy">Each bootstrap leaves out "about one-third of the instances", so every customer has trees that never saw her - their votes are honest tests. Breiman: "using the out-of-bag error estimate removes the need for a set aside test set", and the estimates are "unbiased" - but only once enough trees exist; early on, tiny committees make OOB pessimistic. And OOB stays forest-internal: for time-based splits or cross-family comparisons you still want the true holdout.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ OFFICIAL COVERAGE ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Breiman, Random Forests, Machine Learning 2001</span><span class="note">The definition, the random-feature contribution with its Ho / Amit &amp; Geman lineage, and OOB error with the early-training caveat</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Breiman, Bagging Predictors, Machine Learning 1996</span><span class="note">The instability sentence in full, and its converse: bagging does little for stable learners</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Full source map with every URL and every honesty caveat: <span class="mono">materials/official-course-map.md</span> in this repo.</p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 2 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>The recipe in one breath</b><span>Bootstrap sample per tree, random feature subset per split, deep trees on purpose, majority vote.</span></div>
+      <div class="cheat-item"><b>Instability is the fuel</b><span>Bagging improves a predictor only if perturbing the sample changes it - Breiman 1996. Deep trees qualify; logistic regression does not.</span></div>
+      <div class="cheat-item"><b>RF is not just bagged trees</b><span>The contribution is per-node feature subsetting - with lineage: Breiman credits Ho 1998 and Amit &amp; Geman 1997.</span></div>
+      <div class="cheat-item"><b>Subsetting = engineered disagreement</b><span>Without it every tree roots on the loudest feature and 60 correlated votes cancel nothing.</span></div>
+      <div class="cheat-item"><b>OOB, with its caveat</b><span>Each bootstrap misses about a third of rows; score customers by trees that never saw them. Unbiased once enough trees are grown - pessimistic early.</span></div>
+      <div class="cheat-item"><b>The measured payoff</b><span>Single tree 75.0 / 58.0 - forest 88.5 / 68.0. Averaging is worth ten holdout points on this data, and session 3 re-measures it live.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>Tonight's forest votes; it cannot add signal no tree found. Session 3 switches recipes: chain the trees, each one trained on what the last got wrong. The residual game - boosting as gradient descent in function space, the learning rate that tames it, and the live engine fitting real trees in your browser while you watch the train and holdout curves split apart.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 2 of 6 · learn-ensemble-methods-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="01-why-trees-win-tables.html">← Prev: Why trees win tables</a> &nbsp;·&nbsp; <a href="../index.html">All sessions</a> &nbsp;·&nbsp; <a href="03-the-residual-game.html">Next: The residual game →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=1"></script>
+</body>
+</html>

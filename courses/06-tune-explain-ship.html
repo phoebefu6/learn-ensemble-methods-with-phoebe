@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 6 of 6. The live leaderboard: five configs fit real ensembles in your browser, tuned boosting takes the crown at 73, SHAP explains the flags, and TabPFN gets its honest challenger slot.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="Tune, explain, ship - learn ensemble methods with phoebe">
+<meta property="og:description" content="Session 6 of 6. Five configs, fitted live. Tuning wins by 5. SHAP explains every flag. TabPFN challenges honestly.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/courses/06-tune-explain-ship.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Tune, explain, ship - learn ensemble methods with phoebe">
+<meta name="twitter:description" content="Session 6 of 6. Five configs fitted live in the browser. Tuning wins by 5.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 6 · Tune, explain, ship - learn ensemble methods with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-ensemble-methods-with-phoebe</a> / Session 6 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Ensemble Methods with Phoebe · Session 6 of 6</div>
+    <h1>Tune, explain, <span class="accent">ship</span></h1>
+    <p class="sub">Five sessions built the machinery; tonight it competes. Five configurations fit their whole ensembles live on the leaderboard - a few hundred real trees per click - and the ranking lands exactly where the research said it would: tuning wins, restraint beats enthusiasm, and 540 extra trees buy less than nothing. Then the two questions every shipped model must answer: why did it flag THIS customer (SHAP), and is a foundation model about to make this whole course obsolete (measured, dated, honestly: not yet, and partly).</p>
+    <div class="chip-row">
+      <span class="chip level">🔴 Capstone</span>
+      <span class="chip audience">Everyone who climbed sessions 1-5</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:4">3-18 · Tuning strategy + explanation</span>
+      <span class="a3" style="flex:5">18-40 · Build-along: the leaderboard</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>Where the ladder stands</h2>
+    </div>
+    <p class="lede">One tree: 58. The forest: 68. Careless boosting: 68 with a train score screaming 100. Sessions 4 and 5 explained what the industrial libraries add. Tonight the tuned booster takes the crown at <strong>73</strong>, the anti-lever proves more-trees is not a plan, and the model earns the two credentials it needs to ship: an explanation for every flag, and an honest answer to the newest challenger.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions for the final stamp</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> A tuning strategy you have now verified twice with your own clicks. A working grasp of SHAP strong enough to read a waterfall in a meeting. And the dated, two-sided TabPFN verdict that will make you the calmest person in any "is XGBoost dead" conversation.</p>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The tuning strategy, assembled from the whole course<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Everything the course measured compresses into four moves, in order:</p>
+        <ul>
+          <li><strong>Start from defaults, shallow and slow.</strong> Depth 3, learning rate under 0.1, per the ESL law you verified in session 3. Defaults are better than folklore: the McElfresh finding was that LIGHT tuning of a gradient booster beats agonizing over model families.</li>
+          <li><strong>Let early stopping choose the round count.</strong> Hold out a validation slice, stop at the crest. You watched the crest exist - 77 percent near round 48 - before drifting down.</li>
+          <li><strong>Then, and only then, touch the shape knobs</strong> - depth, minimum leaf size, subsampling - one at a time, watching the holdout, never the train.</li>
+          <li><strong>Stop when the gain stops.</strong> The difference between 73 and the theoretical ceiling on noisy churn data is mostly noise you should refuse to chase.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 1 ============ -->
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers explanation</span>
+      <h2>Why did it flag ME? SHAP, the short honest version</h2>
+      <span class="tag concept">8 min live</span>
+    </div>
+    <p class="lede">The voucher team will not act on a score they cannot interrogate, and the first escalation is always a named customer: why did it flag this one? For tree ensembles that question has an exact answer, computed in polynomial time - which is rarer than it sounds.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 380" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A SHAP-style waterfall for one flagged customer: starting from the base churn rate, days since order adds risk, sessions add risk, orders reduce it slightly, arriving at a high final score">
+        <style>
+          .e6aL { font: 600 12px Inter, sans-serif; fill: #1C1917; }
+          .e6aV { font: 700 11px Inter, sans-serif; fill: #fff; }
+          .e6aK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e6aN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e6aT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e6aT" x="60" y="42">ONE FLAGGED CUSTOMER · CONTRIBUTIONS SUM EXACTLY TO THE PREDICTION - THAT IS THE SHAP GUARANTEE</text>
+        <line x1="200" y1="60" x2="200" y2="300" stroke="#D6D3D1" stroke-width="1.5" stroke-dasharray="4 4"/>
+        <text class="e6aN" x="200" y="320" text-anchor="middle">base rate 48%</text>
+        <text class="e6aL" x="188" y="92" text-anchor="end">start: base rate</text>
+        <rect x="200" y="76" width="8" height="22" rx="3" fill="#D6D3D1"/>
+        <text class="e6aL" x="188" y="136" text-anchor="end">73 days since order</text>
+        <rect x="200" y="120" width="220" height="22" rx="5" fill="#4D7C0F"/>
+        <text class="e6aV" x="212" y="136">+24 points of churn risk</text>
+        <text class="e6aL" x="188" y="180" text-anchor="end">2 sessions in 30d</text>
+        <rect x="420" y="164" width="120" height="22" rx="5" fill="#4D7C0F"/>
+        <text class="e6aV" x="432" y="180">+11</text>
+        <text class="e6aL" x="188" y="224" text-anchor="end">4 support tickets</text>
+        <rect x="540" y="208" width="90" height="22" rx="5" fill="#65A30D"/>
+        <text class="e6aV" x="552" y="224" fill="#1C1917" style="fill:#1C1917">+8</text>
+        <text class="e6aL" x="188" y="268" text-anchor="end">6 orders in 90d</text>
+        <rect x="560" y="252" width="70" height="22" rx="5" fill="#CA8A04"/>
+        <text class="e6aV" x="572" y="268" fill="#1C1917" style="fill:#1C1917">-7</text>
+        <rect x="623" y="290" width="130" height="26" rx="6" fill="#3F6212"/>
+        <text class="e6aV" x="688" y="307" text-anchor="middle">score: 84% risk</text>
+        <text class="e6aN" x="60" y="356">Illustrative values in the style of a SHAP waterfall. The guarantee that makes it trustworthy: attributions provably sum to the prediction.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - a waterfall reads as a sentence: mostly the 73-day silence, plus the empty sessions, despite the healthy order count</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>What SHAP guarantees, and the tree-shaped luck<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>SHAP - Lundberg and Lee, 2017 - assigns each feature a contribution to one specific prediction, borrowed from cooperative game theory, and proves it is the <strong>unique</strong> attribution satisfying a small set of consistency properties. Not "a" way to split the credit: the only way that keeps the books balanced - contributions sum exactly to the prediction's distance from the base rate.</p>
+        <p>The catch in general: computing Shapley values exactly is exponential. The tree-shaped luck: for tree ensembles, the 2020 TreeExplainer result gives "the first polynomial time algorithm to compute optimal explanations based on game theory" - exact values, fast, by walking the internal structure of the trees. Your booster gets exact explanations essentially free; a neural network gets approximations.</p>
+        <div class="callout tip">
+          <p><strong>Two honesty rails for using it.</strong> Exact-in-polynomial-time is a TREES-ONLY privilege - KernelSHAP for arbitrary models approximates. And SHAP explains what the MODEL did, not what the world does: "73-day silence contributed +24" is a fact about the booster, a correlation the trees found, never proof that silence causes churn. Causal claims live on an entirely different ladder.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Settling your session-1 feature guesses<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Global SHAP - averaging attribution magnitudes across all customers - is the grown-up version of "which features matter". On the course data the ranking lands roughly: days since last order first by a wide margin, sessions and orders next, tickets and discount share behind, average order value nearly nothing.</p>
+        <p>Compare that to the guesses you wrote in session 1. The typical surprise is AOV: it feels like it should matter - expensive-basket customers feel loyal - and the trees, free to use it, barely touch it. An uninformative feature discovered by the model itself is session 1's first Grinsztajn reason, closing the loop.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>The leaderboard: every config fits live</h2>
+      <span class="tag demo">★ 22 min · everyone builds</span>
+    </div>
+    <p class="lede">Five configurations from the whole course. Press Run on each: your browser fits the entire ensemble - up to 600 real trees - and posts the measured train and holdout scores. The ranking is allowed to embarrass a config, and it will.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 300" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Expected leaderboard results: single tree 58, forest 68, untuned boosting 68, tuned boosting 73 wins, six hundred careless trees 70">
+        <style>
+          .e6bL { font: 600 11px Inter, sans-serif; fill: #1C1917; }
+          .e6bV { font: 800 12px Inter, sans-serif; fill: #1C1917; }
+          .e6bW { font: 800 11px Inter, sans-serif; fill: #fff; }
+          .e6bN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e6bT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e6bT" x="60" y="40">THE EXPECTED FINISH ORDER · IF YOUR RUN DIFFERS, RE-CHECK WHICH ROW YOU PRESSED</text>
+        <text class="e6bL" x="250" y="84" text-anchor="end">one deep tree</text>
+        <rect x="262" y="68" width="232" height="22" rx="5" fill="#D9F99D"/>
+        <text class="e6bV" x="502" y="84">58.0 · the session-1 baseline</text>
+        <text class="e6bL" x="250" y="126" text-anchor="end">bagged forest, 60 trees</text>
+        <rect x="262" y="110" width="272" height="22" rx="5" fill="#65A30D"/>
+        <text class="e6bV" x="544" y="126">68.0 · variance canceled</text>
+        <text class="e6bL" x="250" y="168" text-anchor="end">boosting, untuned</text>
+        <rect x="262" y="152" width="272" height="22" rx="5" fill="#65A30D"/>
+        <text class="e6bV" x="544" y="168">68.0 · train 100, gap 32</text>
+        <text class="e6bL" x="250" y="210" text-anchor="end">boosting, tuned</text>
+        <rect x="262" y="194" width="292" height="22" rx="5" fill="#3F6212"/>
+        <text class="e6bW" x="274" y="210">73.0 · the crown, on restraint alone</text>
+        <text class="e6bL" x="250" y="252" text-anchor="end">⚠ 600 trees, careless</text>
+        <rect x="262" y="236" width="280" height="22" rx="5" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+        <text class="e6bV" x="554" y="252" fill="#991B1B" style="fill:#991B1B">70.0 · 540 extra trees, minus 3</text>
+        <text class="e6bN" x="60" y="288">Same 100 held-out customers judge every row. The only difference between 68 and 73 is the tuning strategy from Part 0.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the expected finish order, so your live run has a reference</figcaption>
+    </figure>
+
+    <div id="ensemble-tune"></div>
+
+    <div class="steps">
+      <div class="step"><p><strong>Run the single tree first.</strong> 75 train, 58 holdout - the session-1 numbers, refitted just now. This is the baseline every ensemble in the course exists to beat.</p></div>
+      <div class="step"><p><strong>Run the forest.</strong> Sixty bootstrap trees with random feature subsets vote their way to 68. Note the train score: 88.5, not 100 - bagging's honesty. Averaging does not pretend to memorize.</p></div>
+      <div class="step"><p><strong>Run untuned boosting and put your finger on the gap.</strong> Train 100, holdout 68: all that machinery, tied with the forest, because depth 6 at rate 0.5 spent its rounds memorizing. You watched this happen curve-by-curve in session 3; now it is one row on a board.</p></div>
+      <div class="step"><p><strong>Run tuned boosting - the crown.</strong> Depth 3, rate 0.1, 200 rounds: 73.0. Nothing exotic. The ESL law plus early-stopping discipline, worth five clean points over the identical algorithm run carelessly. Tuning IS the product.</p></div>
+      <div class="step"><p><strong>Run the anti-lever last: 600 careless rounds.</strong> Ten times the trees of the tuned config's useful phase - result, 70. Three points BELOW the crown. When someone proposes fixing a model by training longer, this row is your answer, and you measured it yourself.</p></div>
+      <div class="step"><p><strong>Score your own session-1 N.</strong> Your hand-built "flag over N days" rule scored somewhere near the single tree. The distance from your rule to 73 is what this course added; the distance from 73 to 100 is noise nobody honest will ever close on this data.</p></div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>The sentence the whole course compresses into.</strong> Ensembles win tables not by being clever but by being disciplined: average what disagrees, chain what corrects, shrink every step, stop at the crest, and explain every flag before someone asks.</p>
+    </div>
+
+    <div class="scorecard" data-title="Ship the churn model - the strict gate" data-foot="The final check. A no on any row is the work remaining before the voucher team sees a single flag.">
+      <div class="sc-row"><div class="sc-q">The shipped config was chosen on holdout, by early stopping, and the train score was never the argument<em>Session 3's law, session 6's leaderboard.</em></div></div>
+      <div class="sc-row"><div class="sc-q">You can produce the waterfall for any flagged customer within a minute<em>Exact for trees - the polynomial-time guarantee is your privilege, use it.</em></div></div>
+      <div class="sc-row"><div class="sc-q">The claim you make for the model carries its scope<em>Typical, medium-sized tabular; balanced-sample accuracy; correlation not cause.</em></div></div>
+      <div class="sc-row"><div class="sc-q">A retrain trigger exists in writing<em>Data drift, definition change, or the quarterly re-route - not "when someone remembers".</em></div></div>
+      <div class="sc-row"><div class="sc-q">You re-ran the challenger honestly this quarter<em>TabPFN or its successors, on YOUR data, dated - not dismissed, not worshipped.</em></div></div>
+    </div>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers the challenger</span>
+      <h2>TabPFN: the challenger, taken seriously</h2>
+      <span class="tag concept">6 min live</span>
+    </div>
+    <p class="lede">A course that crowned gradient boosting in its title owes you the strongest case against it. As of September 2026 that case is TabPFN, a tabular foundation model - and the honest verdict is genuinely split, along a line worth knowing precisely.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Two-column evidence: benchmarks 2025 favor TabPFN on small data, competitions through 2024 show zero foundation model wins and continued GBDT dominance">
+        <style>
+          .e6cH { font: 800 13px Inter, sans-serif; fill: #fff; }
+          .e6cB { font: 400 12px Inter, sans-serif; fill: #1C1917; }
+          .e6cK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e6cN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+        </style>
+        <rect x="60" y="50" width="370" height="200" rx="12" fill="#3F6212"/>
+        <text class="e6cH" x="80" y="82">Benchmarks say: ahead</text>
+        <rect x="80" y="98" width="330" height="136" rx="8" fill="#F7FEE7"/>
+        <text class="e6cB" x="96" y="122">Nature 2025: beats all previous methods</text>
+        <text class="e6cB" x="96" y="142">up to 10,000 samples, by a wide margin</text>
+        <text class="e6cB" x="96" y="162">2.8s vs baselines tuned for 4 hours</text>
+        <text class="e6cB" x="96" y="182">v2.5 claims wins to 50,000 rows -</text>
+        <text class="e6cB" x="96" y="202">vendor-authored, not yet peer-reviewed</text>
+        <text class="e6cK" x="96" y="226">Peer-reviewed core, real result</text>
+        <rect x="450" y="50" width="370" height="200" rx="12" fill="#CA8A04"/>
+        <text class="e6cH" x="470" y="82" fill="#1C1917" style="fill:#1C1917">Competitions say: absent</text>
+        <rect x="470" y="98" width="330" height="136" rx="8" fill="#FEF9C3"/>
+        <text class="e6cB" x="486" y="122">2024 winning solutions: 16 LightGBM,</text>
+        <text class="e6cB" x="486" y="142">13 CatBoost, 8 XGBoost</text>
+        <text class="e6cB" x="486" y="162">Tabular foundation models: zero</text>
+        <text class="e6cB" x="486" y="182">Messy data, real stakes, open field -</text>
+        <text class="e6cB" x="486" y="202">and the trees still cash the checks</text>
+        <text class="e6cK" x="486" y="226">The in-the-wild record, dated</text>
+        <rect x="60" y="274" width="760" height="44" rx="10" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+        <text class="e6cK" x="440" y="301" text-anchor="middle" fill="#991B1B" style="fill:#991B1B">The costs are structural: hard dataset-size ceiling, and every prediction re-processes the training set</text>
+        <text class="e6cN" x="60" y="344">Both columns true, both dated September 2026. A course that resolved this for you would be lying - re-run the comparison on your data, quarterly.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the split verdict, with dates attached, which is the only honest way to hold it</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>How to hold both columns at once<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The Nature result is real: on datasets up to 10,000 samples, TabPFN "outperforms all previous methods... by a wide margin", delivering in 2.8 seconds what took tuned baselines four hours. On data the size of this course's sample, the challenger is likely ahead - which is exactly why the final scorecard makes re-running it a standing row rather than a heresy.</p>
+        <p>The structural costs are also real. The envelope is hard - beyond it quality and memory degrade, which is why the vendor's own 2.5 release ships a distillation engine to convert predictions back into compact models. And in-context learning means every prediction re-processes the training data: a fitted booster scores a customer in microseconds forever, and that asymmetry is why production and competitions still belong to the trees.</p>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>The grown-up position in a 2026 architecture review: "GBDT is the shipped default; the foundation model is the quarterly challenger with a dated benchmark on our own data." That sentence contains no tribal loyalty, survives both futures, and costs one afternoon a quarter to maintain.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>After the course</h2>
+      <span class="tag exercise">45 min</span>
+    </div>
+    <ol>
+      <li><strong>Reproduce the ladder on real data.</strong> Pick one labeled table from your work, hold out 20 percent, and run the five leaderboard configs with a real library - xgboost or lightgbm. Write your five numbers next to the course's.</li>
+      <li><strong>Let early stopping pick M.</strong> Use the library's validation-based stopping and note where it stops versus where you would have.</li>
+      <li><strong>Produce one SHAP waterfall</strong> for the most surprising prediction, and write the one-sentence reading like this session's caption.</li>
+      <li><strong>Run the challenger honestly:</strong> if your table is inside the envelope, run TabPFN on the same split and put its number on your ladder, dated.</li>
+      <li><strong>Write the ship memo:</strong> config, holdout score, explanation route, retrain trigger, challenger date. Five lines. That memo is the difference between a model and a shipped model.</li>
+    </ol>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three for the final passport stamp.</p>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · Tuned boosting (depth 3, rate 0.1, early-stopped) beat the identical algorithm run carelessly by 73 to 68. What produced the five points?</p>
+      <button class="qopt" type="button">A · The tuned config used a fundamentally different, more advanced algorithm</button>
+      <button class="qopt" type="button">B · Restraint: shallow trees and small steps refuse most of the noise that deep-and-fast memorizes, so more of what gets learned is real</button>
+      <button class="qopt" type="button">C · Luck - on a re-run the careless config would win as often</button>
+      <p class="qwhy">Same loop, same trees' worth of compute in the useful phase, same data. The difference is the ESL strategy: v small, M chosen by early stopping. The engine is deterministic - re-running it produces the same 73 and 68, which is exactly why the leaderboard can hard-code its expectations.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · What makes SHAP explanations for your booster special compared to explanations for an arbitrary model?</p>
+      <button class="qopt" type="button">A · SHAP only works on tree models, so there is no comparison to make</button>
+      <button class="qopt" type="button">B · Tree explanations are more colorful but mathematically identical</button>
+      <button class="qopt" type="button">C · For trees there is a polynomial-time algorithm computing EXACT Shapley values; general models get approximations</button>
+      <p class="qwhy">The 2020 TreeExplainer result: "the first polynomial time algorithm to compute optimal explanations based on game theory", exploiting tree structure. KernelSHAP for arbitrary models approximates. Exact, fast explanation is a genuine competitive advantage of shipping trees - and it explains the model, never the world: attributions are not causes.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · A colleague says "TabPFN beat XGBoost in Nature, the trees era is over." The course-grade response?</p>
+      <button class="qopt" type="button">A · Both columns, dated: the Nature result is real inside its envelope (up to ~10K samples), while 2024 competition winners used GBDTs 37 times and foundation models zero - so ship the booster, challenge quarterly</button>
+      <button class="qopt" type="button">B · The Nature paper is vendor hype and should be ignored</button>
+      <button class="qopt" type="button">C · Correct - retire gradient boosting immediately for all tabular work</button>
+      <p class="qwhy">Both dismissal and surrender flunk. The peer-reviewed result is real and scoped; the in-the-wild record through 2024 is real and dated; the structural costs (size ceiling, per-prediction re-processing) are real and current. Holding contested evidence as contested, with dates, is the discipline - resolving it prematurely in either direction is the error.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ OFFICIAL COVERAGE ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">ESL 2e section 10.12.1, applied</span><span class="note">The small-v early-stopping strategy, executed live on the leaderboard rather than recited</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Lundberg &amp; Lee 2017 + TreeExplainer 2020</span><span class="note">Unique consistent attributions; exact polynomial-time computation for trees, quoted</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">TabPFN, Nature 2025 + TabPFN-2.5 report</span><span class="note">Both columns of the verdict, with the peer-reviewed vs vendor-authored line drawn explicitly</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">ML Contests 2024 + McElfresh 2023</span><span class="note">The competition tally and the tuning-beats-choosing finding, both dated</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Causal interpretation of attributions</span><span class="note">Named as out of scope with one honesty rail - the causal ladder is its own course</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Full source map with every URL and every honesty caveat: <span class="mono">materials/official-course-map.md</span> in this repo.</p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 6 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>The final ladder</b><span>Tree 58, forest 68, careless boosting 68, tuned 73, 600-trees 70. Measured live, reproducible forever.</span></div>
+      <div class="cheat-item"><b>Tuning strategy</b><span>Shallow and slow, early-stop for M, then one shape knob at a time on holdout. Tuning IS the product.</span></div>
+      <div class="cheat-item"><b>The anti-lever verdict</b><span>540 extra careless trees: minus three points. Training longer is not a fix, and you measured it.</span></div>
+      <div class="cheat-item"><b>SHAP in one line</b><span>The unique consistent split of a prediction into feature contributions - exact and fast for trees only.</span></div>
+      <div class="cheat-item"><b>Attribution is not cause</b><span>The waterfall explains the model, not the world. Keep the two sentences apart in every meeting.</span></div>
+      <div class="cheat-item"><b>The challenger protocol</b><span>Ship the booster; benchmark TabPFN quarterly on your own data, dated. No tribal loyalty either way.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">The arc, closed</span>
+    <p>Session 1 gave you one split and a 17-point gap. Session 2 averaged the gap down; session 3 chained corrections through it; sessions 4 and 5 showed what the industrial engines add; tonight the tuned booster took the crown, explained its flags, and faced its challenger with dates attached. The voucher team gets its list, the memo is five lines, and the next time someone says "just add more trees", there is a button you can hand them.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 6 of 6 · learn-ensemble-methods-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="05-lightgbm-and-catboost.html">← Prev: LightGBM &amp; CatBoost</a> &nbsp;·&nbsp; <a href="../index.html">All sessions</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=1"></script>
+<script src="../assets/ensemble-live.js?v=1"></script>
+</body>
+</html>

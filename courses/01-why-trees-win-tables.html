@@ -1,0 +1,413 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<!-- social:start -->
+<meta name="description" content="Session 1 of 6. Why tree ensembles still rule tabular data: the three reasons from the research, what the competition record actually shows, and the Mango Lane churn brief the whole course builds on.">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="Learn with Phoebe">
+<meta property="og:title" content="Why trees win tables - learn ensemble methods with phoebe">
+<meta property="og:description" content="Session 1 of 6. The evidence for tree ensembles on tabular data, read honestly, and the churn brief the course builds on.">
+<meta property="og:url" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/courses/01-why-trees-win-tables.html">
+<meta property="og:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Why trees win tables - learn ensemble methods with phoebe">
+<meta name="twitter:description" content="Session 1 of 6. The evidence for tree ensembles on tabular data, read honestly.">
+<meta name="twitter:image" content="https://phoebefu6.github.io/learn-ensemble-methods-with-phoebe/assets/og-cover.png">
+<!-- social:end -->
+<title>Session 1 · Why trees win tables - learn ensemble methods with phoebe</title>
+<link rel="stylesheet" href="../assets/style.css?v=1">
+</head>
+<body>
+
+<div class="toolbar">
+  <div class="wrap">
+    <span class="crumb"><a href="../index.html">learn-ensemble-methods-with-phoebe</a> / Session 1 of 6</span>
+    <button class="btn" id="toggle-all" type="button">Expand all</button>
+    <button class="btn primary" id="zoom-toggle" type="button">Projector zoom: off</button>
+  </div>
+</div>
+
+<header class="masthead">
+  <div class="wrap">
+    <div class="eyebrow">Learn Ensemble Methods with Phoebe · Session 1 of 6</div>
+    <h1>Why trees <span class="accent">win tables</span></h1>
+    <p class="sub">Deep learning ate images, speech and language, and then hit a table of customer rows and stopped winning. This course is about the models that kept the crown: tree ensembles. Tonight, the evidence for that claim read at quote level - the three reasons from the research, what the 2024 competition record actually shows, and where the story is honestly shifting - plus the Mango Lane churn brief that every session from here builds into a working, tuned, explained model.</p>
+    <div class="chip-row">
+      <span class="chip level">🟢 Start here</span>
+      <span class="chip audience">Builders who know what a decision tree is</span>
+      <span class="chip audience">And anyone tired of losing to XGBoost</span>
+      <span class="chip time">45 min</span>
+    </div>
+    <div class="agenda">
+      <span class="a1" style="flex:1">0-3 · Welcome</span>
+      <span class="a2" style="flex:5">3-22 · The evidence, read honestly</span>
+      <span class="a3" style="flex:4">22-40 · Build-along: meet the data, split it by hand</span>
+      <span class="a4" style="flex:1">40-45 · Q&amp;A</span>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+
+  <!-- ============ INTRO ============ -->
+  <section class="section" id="intro">
+    <div class="section-kicker">
+      <span class="klabel">Part 0</span>
+      <h2>How this course works</h2>
+    </div>
+    <p class="lede">Six sessions, 45 minutes each, one running project: <strong>predict which Mango Lane customers churn</strong>. Mango Lane is a fashion app - AOV $68, about $660,960 of monthly GMV, 12,000 customers - and marketing wants to know who is about to leave. Every lab runs on the same deterministic 300-customer sample: 200 to learn from, 100 held out and never touched during training. By session 6 you have climbed from one overfit tree at 58 percent holdout to a tuned booster at 73, and every number on that ladder is measured live in your browser, not quoted from a slide.</p>
+
+    <div class="legend">
+      <span class="pill">🎫 Clear all three quiz questions to stamp your passport</span>
+      <span class="pill">Live = presented in the 45 minutes</span>
+      <span class="pill">Self-study = the full depth, after class</span>
+    </div>
+
+    <div class="callout win">
+      <p><strong>★ What you walk out with tonight.</strong> The three research-grade reasons trees beat neural networks on tables, with their exact scope so you never overstate them. The honest 2024 competition tally. And your first hand-built split on the real course data, which is worth more than both.</p>
+    </div>
+
+    <details class="card" open>
+      <summary><span class="mode live">Live</span>The claim this course rests on, stated carefully<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The claim is not "trees always win". The claim, from the paper that tested it properly: <strong>"tree-based models remain state-of-the-art on medium-sized data (~10K samples) even without accounting for their superior speed."</strong> That is Grinsztajn, Oyallon and Varoquaux, NeurIPS 2022, across 45 datasets - and the word doing quiet work is <em>medium-sized</em>. Most tables you will ever model - churn lists, credit files, ops logs - live exactly in that range.</p>
+        <p>Careful scope is not hedging, it is the skill. A claim you can state with its boundary attached survives every meeting; the boosterish version dies at the first counterexample.</p>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>Mango Lane's last churn attempt was a neural network a contractor built in 2024. It needed an embedding layer for six numeric columns, took a week to stop diverging, and lost to the analyst's logistic regression. Nobody had read the tabular literature; everyone had read the deep learning press.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The vocabulary for the whole arc<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <ul>
+          <li><strong>Ensemble</strong> - many weak-ish models combined into one strong one. The two great recipes: average independent models (bagging, session 2) or chain corrective models (boosting, session 3).</li>
+          <li><strong>Variance</strong> - how much your model changes if the training sample changes. Deep single trees are high-variance: perturb the data, get a different tree. Averaging attacks variance.</li>
+          <li><strong>Bias</strong> - error from the model being too simple to express the truth. Boosting attacks bias, one small correction at a time.</li>
+          <li><strong>Holdout</strong> - the 100 customers the model never sees while learning. Every honest number in this course is a holdout number; every seductive number is a train number.</li>
+        </ul>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 1 ============ -->
+  <section class="section" id="part-1">
+    <div class="section-kicker">
+      <span class="klabel">Part 1 · covers the research evidence</span>
+      <h2>Three reasons, quoted at the source</h2>
+      <span class="tag concept">7 min live</span>
+    </div>
+    <p class="lede">The Grinsztajn paper did not just measure that trees win on typical tables - it isolated why, by degrading tabular data until neural networks caught up. The paper frames the findings as three challenges a neural network must solve to compete. Read as a mirror, they are the three reasons trees are at home in a table.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 360" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The three reasons tree ensembles beat neural networks on typical tabular data, from Grinsztajn et al. 2022">
+        <style>
+          .e1aH { font: 700 13px Inter, sans-serif; fill: #fff; }
+          .e1aB { font: 400 12px Inter, sans-serif; fill: #FEF9C3; }
+          .e1aK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e1aN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e1aT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e1aT" x="60" y="44">GRINSZTAJN, OYALLON &amp; VAROQUAUX · NEURIPS 2022 · 45 DATASETS, MEDIUM-SIZED (~10K SAMPLES)</text>
+        <rect x="60" y="64" width="240" height="150" rx="12" fill="#3F6212"/>
+        <text class="e1aH" x="80" y="94">1 · Uninformative</text>
+        <text class="e1aH" x="80" y="112">features</text>
+        <text class="e1aB" x="80" y="140">Tables carry junk columns.</text>
+        <text class="e1aB" x="80" y="158">A split just ignores them;</text>
+        <text class="e1aB" x="80" y="176">an MLP has to learn to.</text>
+        <rect x="320" y="64" width="240" height="150" rx="12" fill="#4D7C0F"/>
+        <text class="e1aH" x="340" y="94">2 · Orientation</text>
+        <text class="e1aH" x="340" y="112">of the data</text>
+        <text class="e1aB" x="340" y="140">Columns MEAN something.</text>
+        <text class="e1aB" x="340" y="158">Trees cut along axes; MLPs</text>
+        <text class="e1aB" x="340" y="176">are rotation-invariant.</text>
+        <rect x="580" y="64" width="240" height="150" rx="12" fill="#CA8A04"/>
+        <text class="e1aH" x="600" y="94" fill="#1C1917" style="fill:#1C1917">3 · Irregular</text>
+        <text class="e1aH" x="600" y="112" fill="#1C1917" style="fill:#1C1917">functions</text>
+        <text class="e1aK" x="600" y="140">Churn jumps at day 45,</text>
+        <text class="e1aK" x="600" y="158">not smoothly. Steps fit</text>
+        <text class="e1aK" x="600" y="176">steps. Smooth nets fight.</text>
+        <rect x="60" y="240" width="760" height="44" rx="10" fill="#F7FEE7"/>
+        <text class="e1aK" x="440" y="267" text-anchor="middle">The paper's exact words: robust to uninformative features · preserve the orientation of the data · easily learn irregular functions</text>
+        <text class="e1aN" x="60" y="316">These are stated as challenges neural networks must solve. Read as a mirror, they are the home advantage.</text>
+        <text class="e1aN" x="60" y="338">Scope, always attached: typical tabular data, medium-sized, 45 datasets. Not a law of nature.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the three reasons, with the scope that keeps them true</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Reason by reason, on Mango Lane's actual columns<span class="mini">5 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>The course dataset has six features: days since last order, orders in 90 days, average order value, support tickets, discount share, sessions in 30 days. Watch the three reasons land on it:</p>
+        <ul>
+          <li><strong>Uninformative features.</strong> Average order value turns out to carry almost no churn signal here. A tree simply never splits on it. A neural network spends capacity learning to ignore it, and on 200 training rows there is no capacity to spare.</li>
+          <li><strong>Orientation.</strong> "Days since last order over 45" is a meaningful statement about a real column. A rotated mixture of days-and-ticket-counts is meaningless - and tabular data is full of such axis-aligned meaning. Trees cut along axes by construction; the paper shows rotating the data destroys the tree advantage, which proves the advantage was the orientation.</li>
+          <li><strong>Irregular functions.</strong> Churn risk does not glide upward with inactivity - it steps: fine at 30 days, gone at 50. A tree IS a step function. A smooth network has to contort to make a cliff.</li>
+        </ul>
+        <div class="callout tip">
+          <p><strong>The second paper that keeps you honest.</strong> McElfresh and colleagues re-ran the question at 176 datasets and 19 algorithms in 2023 and found something less romantic: on a surprisingly high number of datasets the tree-vs-net difference is negligible, and <strong>light hyperparameter tuning on a gradient-boosted tree matters more than which model family you chose</strong>. Session 6 turns that finding into your working habit.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>Where the story is honestly shifting<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>A course built on evidence has to show you the newest evidence even when it complicates the title. Two dated facts, both real:</p>
+        <ul>
+          <li><strong>Benchmarks, 2025:</strong> TabPFN, a tabular foundation model published in Nature, "outperforms all previous methods on datasets with up to 10,000 samples by a wide margin" - in 2.8 seconds, against baselines tuned for four hours. Its successor claims wins up to 50,000 rows, though those numbers are vendor-authored and not yet peer-reviewed.</li>
+          <li><strong>Competitions, through 2024:</strong> among the year's winning solutions, 16 used LightGBM, 13 CatBoost, 8 XGBoost - and not one tabular foundation model appears. In the wild, where data is messy and stakes are real, the trees still cash the checks.</li>
+        </ul>
+        <p>Both facts, both dated, no side picked before the evidence settles. Session 6 puts TabPFN on the same leaderboard as everything else and lets the measured numbers argue.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 2 ============ -->
+  <section class="section" id="part-2">
+    <div class="section-kicker">
+      <span class="klabel">Part 2 · covers why one tree is not enough</span>
+      <h2>One tree memorizes; a crowd of trees learns</h2>
+      <span class="tag concept">6 min live</span>
+    </div>
+    <p class="lede">If trees are so at home in tables, why is the course called ensemble methods and not decision trees? Because a single tree has a fatal flaw, and the whole field exists to fix it.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 340" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="A single deep tree scores 75 percent on training data but 58 percent on holdout, while ensembles close the gap and raise the holdout score">
+        <style>
+          .e1bL { font: 600 12px Inter, sans-serif; fill: #1C1917; }
+          .e1bV { font: 800 12px Inter, sans-serif; fill: #fff; }
+          .e1bK { font: 700 12px Inter, sans-serif; fill: #1C1917; }
+          .e1bN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e1bT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+          .e1bR { font: 800 12px Inter, sans-serif; fill: #991B1B; }
+        </style>
+        <text class="e1bT" x="60" y="44">ONE DEEP TREE ON THE COURSE DATA · MEASURED, SESSION 3 SHOWS IT LIVE</text>
+        <text class="e1bL" x="200" y="92" text-anchor="end">Train accuracy</text>
+        <rect x="212" y="74" width="450" height="28" rx="6" fill="#4D7C0F"/>
+        <text class="e1bV" x="226" y="93">75.0%</text>
+        <text class="e1bL" x="200" y="140" text-anchor="end">Holdout accuracy</text>
+        <rect x="212" y="122" width="240" height="28" rx="6" fill="#CA8A04"/>
+        <text class="e1bV" x="226" y="141" fill="#1C1917" style="fill:#1C1917">58.0%</text>
+        <text class="e1bR" x="470" y="141">17 points evaporate on customers it never saw</text>
+        <rect x="60" y="180" width="760" height="52" rx="10" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+        <text class="e1bR" x="440" y="203" text-anchor="middle">The tree did not learn churn. It memorized 200 customers,</text>
+        <text class="e1bR" x="440" y="222" text-anchor="middle">noise included - and the noise does not repeat in the next 100.</text>
+        <text class="e1bK" x="60" y="270">The two fixes, and they are the course:</text>
+        <text class="e1bL" x="60" y="296">AVERAGE many unstable trees so their private mistakes cancel - bagging, session 2, holdout 68.</text>
+        <text class="e1bL" x="60" y="318">CHAIN small corrections, each fixing what the last got wrong - boosting, session 3, holdout 73 tuned.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the 17-point gap is the problem statement for the whole course</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Instability is the disease, and also the cure<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Leo Breiman named the mechanism in 1996, and his sentence is still the cleanest statement in the field: <strong>"The vital element is the instability of the prediction method. If perturbing the learning set can cause significant changes in the predictor constructed, then bagging can improve accuracy."</strong></p>
+        <p>Deep trees are spectacularly unstable - move ten customers and the whole upper tree can reshape. That is exactly why averaging many of them works: each tree's private, sample-specific mistakes point in different directions, and directions that disagree cancel. Instability, which made one tree untrustworthy, is the raw material that makes a forest strong.</p>
+        <div class="callout example">
+          <span class="ex-pill">Real world</span>
+          <p>This is also why bagging a bunch of logistic regressions barely helps: they are stable, so every copy makes the SAME mistakes, and averaging identical errors changes nothing. The cure only works on the disease.</p>
+        </div>
+      </div>
+    </details>
+
+    <details class="card">
+      <summary><span class="mode self">Self-study</span>The two recipes, side by side, before the deep dives<span class="mini">3 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <table class="clean">
+          <tr><th>Question</th><th>Bagging (session 2)</th><th>Boosting (sessions 3-5)</th></tr>
+          <tr><td>Trees are trained</td><td>Independently, in parallel</td><td>Sequentially, each on the last one's errors</td></tr>
+          <tr><td>Attacks</td><td>Variance - averaging cancels noise</td><td>Bias - each round adds missing signal</td></tr>
+          <tr><td>Tree size</td><td>Deep, unstable on purpose</td><td>Shallow, weak on purpose</td></tr>
+          <tr><td>Combined by</td><td>Vote or average</td><td>Weighted sum, scaled by learning rate</td></tr>
+          <tr><td>Overfits when</td><td>Rarely gets worse with more trees</td><td>More rounds keep polishing noise - session 3 shows it live</td></tr>
+        </table>
+        <p>Every named tool from here - random forest, XGBoost, LightGBM, CatBoost - is one of these two recipes plus engineering. Keep the two-row map and nothing in the field will surprise you.</p>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ PART 3 ============ -->
+  <section class="section" id="part-3">
+    <div class="section-kicker">
+      <span class="klabel">Part 3 · covers the running project</span>
+      <h2>The Mango Lane brief, and the ladder you will climb</h2>
+      <span class="tag concept">5 min live</span>
+    </div>
+    <p class="lede">Marketing's ask: "12,000 customers - tell us who is about to churn, early enough that a voucher still changes their mind." The course works the deterministic 300-customer lab sample, so every learner's numbers match, and the model mechanics stay visible at human scale.</p>
+
+    <figure class="zoomable">
+      <svg viewBox="0 0 880 350" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="The course ladder: single tree 58 percent holdout, forest 68, untuned boosting 68, tuned boosting 73, with 600-trees-forever falling back to 70">
+        <style>
+          .e1cL { font: 600 11px Inter, sans-serif; fill: #1C1917; }
+          .e1cV { font: 800 12px Inter, sans-serif; fill: #1C1917; }
+          .e1cW { font: 800 11px Inter, sans-serif; fill: #fff; }
+          .e1cN { font: 400 12px Inter, sans-serif; fill: #6B7280; }
+          .e1cT { font: 700 11px Inter, sans-serif; fill: #6B7280; letter-spacing: .05em; }
+        </style>
+        <text class="e1cT" x="60" y="40">HOLDOUT ACCURACY, 100 UNSEEN CUSTOMERS · EVERY BAR RE-MEASURED LIVE IN SESSIONS 3 AND 6</text>
+        <rect x="70" y="196" width="130" height="64" rx="8" fill="#D9F99D"/>
+        <text class="e1cV" x="135" y="188" text-anchor="middle">58.0</text>
+        <text class="e1cL" x="135" y="278" text-anchor="middle">one tree, d6</text>
+        <text class="e1cN" x="135" y="296" text-anchor="middle">session 1</text>
+        <rect x="220" y="156" width="130" height="104" rx="8" fill="#65A30D"/>
+        <text class="e1cV" x="285" y="148" text-anchor="middle">68.0</text>
+        <text class="e1cL" x="285" y="278" text-anchor="middle">bagged forest, 60</text>
+        <text class="e1cN" x="285" y="296" text-anchor="middle">session 2</text>
+        <rect x="370" y="156" width="130" height="104" rx="8" fill="#65A30D"/>
+        <text class="e1cV" x="435" y="148" text-anchor="middle">68.0</text>
+        <text class="e1cL" x="435" y="278" text-anchor="middle">boosting, untuned</text>
+        <text class="e1cN" x="435" y="296" text-anchor="middle">session 3 · train hits 100</text>
+        <rect x="520" y="136" width="130" height="124" rx="8" fill="#3F6212"/>
+        <text class="e1cW" x="585" y="158" text-anchor="middle">73.0</text>
+        <text class="e1cL" x="585" y="278" text-anchor="middle">boosting, tuned</text>
+        <text class="e1cN" x="585" y="296" text-anchor="middle">sessions 4-6</text>
+        <rect x="670" y="148" width="130" height="112" rx="8" fill="#FEF2F2" stroke="#FCA5A5" stroke-width="1.5"/>
+        <text class="e1cV" x="735" y="140" text-anchor="middle" fill="#991B1B" style="fill:#991B1B">70.0</text>
+        <text class="e1cL" x="735" y="278" text-anchor="middle">⚠ 600 trees, careless</text>
+        <text class="e1cN" x="735" y="296" text-anchor="middle">session 6 anti-lever</text>
+        <text class="e1cN" x="60" y="330">The interesting rungs are the flat one and the falling one: untuned boosting ties a plain forest, and 540 extra trees buy less than nothing.</text>
+      </svg>
+      <figcaption>🔍 Click to zoom - the ladder, measured on the same 100 held-out customers every time</figcaption>
+    </figure>
+
+    <details class="card">
+      <summary><span class="mode live">Live</span>Read the ladder before you can build it<span class="mini">4 min</span><span class="caret">▶</span></summary>
+      <div class="body">
+        <p>Three things in that chart carry the whole course:</p>
+        <ul>
+          <li><strong>The forest's plus-ten.</strong> Same trees, same data - just sixty of them, each on a bootstrap sample with random feature subsets, voting. Averaging is worth ten points here. That is session 2's entire argument, measured.</li>
+          <li><strong>The tie at 68.</strong> Careless boosting - deep trees, fast learning rate - reaches training accuracy of 100 percent and STILL only ties the forest on customers it never saw. The 32-point train-holdout gap is the most instructive number in the course.</li>
+          <li><strong>The falling bar.</strong> Six hundred rounds of the same careless recipe lands at 70 - below the tuned 73. More trees is not a strategy. Session 6 makes you feel that with a button.</li>
+        </ul>
+        <div class="callout tip">
+          <p><strong>Why plain accuracy, for once.</strong> The lab sample is deliberately balanced - churn runs 48 percent in training, 47 in holdout - so accuracy reads honestly here. On real skewed churn data it would not; the metric zoo and which mistake costs what is a different course's whole subject, and one pointer beats a bad summary.</p>
+        </div>
+      </div>
+    </details>
+  </section>
+
+  <!-- ============ DEMO ============ -->
+  <section class="section" id="demo-1">
+    <div class="section-kicker">
+      <span class="klabel">Build-along</span>
+      <h2>Meet the data, split it by hand</h2>
+      <span class="tag demo">★ 18 min · everyone builds</span>
+    </div>
+    <p class="lede">Before any library touches this data, you will. One hand-built split tonight - because every forest and every booster in this course is made of nothing but thousands of the decision you are about to make once, slowly, yourself.</p>
+
+    <div class="steps">
+      <div class="step"><p><strong>Write down the six features:</strong> daysSinceOrder, orders90d, aov, tickets, discountShare, sessions30d. Beside each, one guess: does more of it mean more churn, less churn, or nothing? Keep the guesses - session 6's SHAP chart grades them.</p></div>
+      <div class="step"><p><strong>Take this 10-customer excerpt from the training sample</strong> (days since order, churned): (12, no) (67, yes) (31, no) (80, yes) (8, no) (44, yes) (55, yes) (19, no) (72, yes) (38, no). Sort them by days. Notice the yeses cluster high - but not perfectly.</p></div>
+      <div class="step"><p><strong>Pick your threshold.</strong> Try "churn if days &gt; 40": that calls 5 of 5 high-side customers right and 5 of 5 low-side right on this excerpt - 10 of 10. Now try 25 and 60 and count again. You just did a split search: score every candidate cut, keep the best. A tree does exactly this, feature by feature, node by node.</p></div>
+      <div class="step"><p><strong>Now break your own rule.</strong> The full 200-customer sample contains a customer at 62 days who did not churn, and one at 22 who did - 10 percent of the labels are noise by construction, because real churn always is. Your clean 10-row rule is already wrong somewhere. THAT is why one tree that keeps splitting until every training customer is right ends up at 58 on the holdout: past some depth, it is fitting the noise you just met.</p></div>
+      <div class="step"><p><strong>Write the one-sentence brief for the voucher team.</strong> "Flag customers over N days inactive" - your N, from your split. Session 2 replaces your single rule with sixty voting trees; keep tonight's sentence to compare against what the machine finds.</p></div>
+    </div>
+
+    <div class="callout tip">
+      <p><strong>What to bring to session 2.</strong> Your feature guesses and your N. The forest will agree with some of your instincts and embarrass others, live, and the embarrassing ones are where the learning is.</p>
+    </div>
+  </section>
+
+  <!-- ============ HOMEWORK ============ -->
+  <section class="section" id="exercise">
+    <div class="section-kicker">
+      <span class="klabel">Homework</span>
+      <h2>Before session 2</h2>
+      <span class="tag exercise">30 min</span>
+    </div>
+    <ol>
+      <li><strong>Read the Grinsztajn abstract</strong> (arXiv 2207.08815) - just the abstract - and find the two scope words this session kept repeating. Write the claim in one sentence with the scope attached.</li>
+      <li><strong>Find one table in your own work</strong> where the target jumps rather than glides - a threshold, a cliff, a policy boundary. That is reason 3 living in your data.</li>
+      <li><strong>Find one uninformative column</strong> in the same table - something you know carries no signal. Reason 1 says the tree will discover that on its own; session 2's forest lets you check.</li>
+      <li><strong>Hand-split practice:</strong> take 10 real rows from your table, one numeric feature, and search the best threshold by counting, like tonight. Note how fast the search gets tedious - that tedium is what the machine is for.</li>
+      <li><strong>Optional:</strong> ask a colleague which model family wins on tabular data and listen for evidence versus vibes. You now hold the dated citations either way.</li>
+    </ol>
+  </section>
+
+  <!-- ============ QUIZ ============ -->
+  <section class="section" id="quiz">
+    <div class="section-kicker">
+      <span class="klabel">Check yourself</span>
+      <h2>Three questions</h2>
+    </div>
+    <p>Clear all three and session 1 gets stamped in your passport.</p>
+
+    <div class="quiz-q" data-answer="1">
+      <p class="qtext">1 · The Grinsztajn finding is that tree-based models remain state of the art - under what scope?</p>
+      <button class="qopt" type="button">A · On all tabular data at any scale, permanently</button>
+      <button class="qopt" type="button">B · On typical, medium-sized tabular data, around 10,000 samples, across the 45 benchmark datasets tested</button>
+      <button class="qopt" type="button">C · Only on datasets with fewer than 100 rows</button>
+      <p class="qwhy">The paper's own words: "state-of-the-art on medium-sized data (~10K samples)", on typical tabular benchmarks. The scope is not hedging - it is what keeps the claim true. Most business tables live exactly in that range, which is why the finding matters despite its boundary.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="2">
+      <p class="qtext">2 · A single depth-6 tree hits 75 percent on training customers but 58 percent on the holdout. What happened?</p>
+      <button class="qopt" type="button">A · The holdout customers are from a different population, so the comparison is unfair</button>
+      <button class="qopt" type="button">B · Accuracy is the wrong metric and hides the tree's true quality</button>
+      <button class="qopt" type="button">C · The tree memorized sample-specific noise in the 200 training customers, and that noise does not repeat in the next 100</button>
+      <p class="qwhy">Both sets come from the same generator and accuracy reads honestly on this balanced sample - the 17-point gap is pure memorization. About 10 percent of labels are noise by construction, and a deep tree faithfully learns it. Instability plus noise is the disease; bagging and boosting are the two cures.</p>
+    </div>
+
+    <div class="quiz-q" data-answer="0">
+      <p class="qtext">3 · What did McElfresh and colleagues find across 176 datasets that session 6 turns into a working habit?</p>
+      <button class="qopt" type="button">A · Often the trees-vs-nets difference is negligible, and light tuning of a gradient-boosted tree matters more than the choice of model family</button>
+      <button class="qopt" type="button">B · Neural networks win whenever the dataset has more than 1,000 rows</button>
+      <button class="qopt" type="button">C · Model choice is everything and tuning is a waste of time</button>
+      <p class="qwhy">The 2023 follow-up at 176 datasets and 19 algorithms: for a surprisingly high number of datasets the family difference is negligible, and light hyperparameter tuning on a GBDT is the bigger lever. Spend your hour tuning, not debating architectures - session 6's leaderboard makes it visceral.</p>
+    </div>
+
+    <p class="quiz-score"></p>
+  </section>
+
+  <!-- ============ OFFICIAL COVERAGE ============ -->
+  <section class="section" id="official">
+    <div class="section-kicker">
+      <span class="klabel">Sources covered</span>
+      <h2>What this session teaches, and where it came from</h2>
+    </div>
+    <div class="covered">
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">Grinsztajn, Oyallon &amp; Varoquaux, NeurIPS 2022</span><span class="note">The state-of-the-art claim with its exact scope, and the three challenges quoted verbatim</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">McElfresh et al., NeurIPS 2023</span><span class="note">176 datasets: negligible family differences are common, light GBDT tuning is the bigger lever</span></div>
+      <div class="covered-row"><span class="status pill solid">✓</span><span class="name">ML Contests, State of ML Competitions 2024</span><span class="note">The winning-solution tally: 16 LightGBM, 13 CatBoost, 8 XGBoost, zero tabular foundation models</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">Breiman, Bagging Predictors 1996</span><span class="note">The instability sentence tonight; the full mechanism is session 2's subject</span></div>
+      <div class="covered-row"><span class="status pill light">◐</span><span class="name">TabPFN, Nature 2025</span><span class="note">Named honestly as the shifting frontier; session 6 puts it on the measured leaderboard</span></div>
+    </div>
+    <p class="mono" style="margin-top:14px">Full source map with every URL and every honesty caveat: <span class="mono">materials/official-course-map.md</span> in this repo.</p>
+  </section>
+
+  <!-- ============ CHEAT SHEET ============ -->
+  <section class="cheat" id="cheatsheet">
+    <h3>Session 1 cheat sheet <span>· pin this</span></h3>
+    <div class="grid-2">
+      <div class="cheat-item"><b>The claim, with scope</b><span>Trees remain state of the art on typical, medium-sized (~10K sample) tabular data. Say it exactly like that.</span></div>
+      <div class="cheat-item"><b>The three home advantages</b><span>Robust to junk columns, aligned to axes that mean something, native to step-shaped truth.</span></div>
+      <div class="cheat-item"><b>Tuning beats choosing</b><span>Across 176 datasets, light GBDT tuning mattered more than the model-family debate.</span></div>
+      <div class="cheat-item"><b>The 17-point gap</b><span>One deep tree: 75 train, 58 holdout. Memorized noise does not repeat. This is the course's problem statement.</span></div>
+      <div class="cheat-item"><b>Instability, weaponized</b><span>Bagging only improves unstable predictors - the flaw that ruins one tree powers a forest.</span></div>
+      <div class="cheat-item"><b>Two recipes only</b><span>Average independent trees (variance) or chain corrective trees (bias). Everything else is engineering.</span></div>
+    </div>
+  </section>
+
+  <div class="callout next">
+    <span class="nx-pill">Next session</span>
+    <p>Tonight you built one split and met the 17-point gap. Session 2 builds sixty trees at once: bootstrap sampling, random feature subsets, out-of-bag error - the Breiman recipe that turns instability into ten extra holdout points, and the free validation trick that removes the need for a set-aside test set.</p>
+  </div>
+
+  <footer class="pagefoot">
+    <span>Session 1 of 6 · learn-ensemble-methods-with-phoebe · by Phoebe Fu &nbsp;·&nbsp; 📚 <a href="https://phoebefu6.github.io/learn-with-phoebe/">Learn with Phoebe ↗</a></span>
+    <span><a href="../index.html">← All sessions</a> &nbsp;·&nbsp; <a href="02-random-forests.html">Next: Random forests →</a></span>
+  </footer>
+
+</main>
+
+<script src="../assets/app.js?v=1"></script>
+</body>
+</html>
