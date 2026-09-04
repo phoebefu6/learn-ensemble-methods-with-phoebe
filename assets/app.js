@@ -433,7 +433,7 @@
    ============================================================ */
 (function () {
   "use strict";
-  var PASSPORT_KEY = "lwp-passport:ai-digital-human";
+  var PASSPORT_KEY = "lwp-passport:ensemble-methods";
   var TOTAL_SESSIONS = 6;
 
   function el(tag, cls, txt) {
