@@ -1337,3 +1337,9 @@ span.mono {
    overflow:auto parent cut it in half; in normal flow nothing can clip it. The right margin
    keeps it clear of the Copy button; long labels wrap instead of running under it. */
 .prompt-box > .label{ position: static; display: table; margin: 0 5.2rem .55rem 0; white-space: normal; line-height: 1.45; }
+
+/* Wipe panes share one grid cell (2026-10-12): the taller pane sets the height. Pane B was
+   absolutely positioned over pane A, so a longer B was cut off at the bottom on phones. */
+.wipe-panes { display: grid; }
+.wipe-panes > .wipe-a, .wipe-panes > .wipe-b { grid-area: 1 / 1; }
+.wipe-panes > .wipe-b { position: relative; inset: auto; }
