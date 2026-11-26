@@ -464,8 +464,8 @@
     var panes = el("div", "wipe-panes");
     w.insertBefore(panes, a);
     panes.appendChild(a); panes.appendChild(b);
-    a.insertBefore(el("h5", null, "✗ " + la), a.firstChild);
-    b.insertBefore(el("h5", null, "✓ " + lb), b.firstChild);
+    a.insertBefore(el("h5", null, la), a.firstChild);
+    b.insertBefore(el("h5", null, lb), b.firstChild);
     var grip = el("div", "wipe-grip");
     grip.setAttribute("role", "separator");
     grip.setAttribute("aria-label", "Drag to compare " + la + " and " + lb);
